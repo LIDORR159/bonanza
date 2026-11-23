@@ -1,10 +1,17 @@
 # BONANZA — Barbershop & Academy
 
-Online store for professional barber equipment and grooming products. Hebrew, right-to-left, priced in ILS.
+The website of a barbershop and its academy, with an online store for professional barber equipment and grooming products.
 
-- **Backend and admin:** [Medusa](https://medusajs.com) 2.23 (`apps/backend`)
-- **Storefront:** Next.js 16, React 19, Tailwind 4 (`apps/storefront`)
-- **Data:** PostgreSQL 17, Redis 7
+- **For visitors:** online booking (an external booking page), the service price list, a gallery of works, reviews, opening hours, a map and contact details, and the store with cart, checkout and customer accounts.
+- **Languages:** Hebrew (default, at `/`), English (`/en`) and Arabic (`/ar`). Hebrew and Arabic are right-to-left. Prices are in ILS and include VAT.
+- **For the owner:** everything on the site is edited in one admin dashboard: products, orders, home page sections, the price list, gallery, team, reviews, menus, pages and business details.
+
+| Part | Built with | Where |
+|---|---|---|
+| Backend and admin | [Medusa](https://medusajs.com) 2.23 | `apps/backend` |
+| Storefront | Next.js 16, React 19, Tailwind 4 | `apps/storefront` |
+| Data | PostgreSQL 17, Redis 7 | |
+| Browser tests | Playwright | `e2e` |
 
 ## Run it locally
 
@@ -31,6 +38,7 @@ More detail: [docs/local-development.md](docs/local-development.md).
 ```
 apps/backend        Medusa: commerce, admin dashboard, content management
 apps/storefront     Next.js storefront
+e2e                 Browser tests that drive the storefront and the admin
 packages/types      Content types shared by both apps
 packages/config     Shared TypeScript and Prettier settings
 infrastructure      Docker, Oracle Cloud, Cloudflare and operations files

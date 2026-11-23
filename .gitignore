@@ -2,6 +2,12 @@
 node_modules/
 .pnpm-store/
 
+# Folders shielded from iCloud Drive (scripts/shield-from-icloud.mjs): the real
+# folder is `<name>.nosync` and the usual name is a link to it. A link is not a
+# directory, so `.next` needs a pattern without the trailing slash as well.
+*.nosync
+.next
+
 # Environment and secrets — never commit real values
 .env
 .env.*

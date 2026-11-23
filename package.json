@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev:setup": "node scripts/setup-dev.mjs",
+    "icloud:shield": "node scripts/shield-from-icloud.mjs",
     "dev": "turbo dev",
     "build": "turbo build",
     "lint": "turbo lint",
