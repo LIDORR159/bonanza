@@ -3,19 +3,23 @@ import { notFound } from "next/navigation"
 import { OrderDetails } from "@/components/checkout/order-details"
 import { ButtonLink } from "@/components/ui/button"
 import { CheckIcon } from "@/components/ui/icons"
-import { t } from "@/lib/i18n"
+import { getT, withLocale } from "@/lib/i18n/server"
 import { retrieveOrder } from "@/lib/medusa/customer-data"
 
 export const dynamic = "force-dynamic"
 
-export const metadata: Metadata = {
-  title: t.order.confirmedTitle,
-  robots: { index: false, follow: false },
-}
+export const generateMetadata = withLocale((): Metadata => {
+  const t = getT()
+  return {
+    title: t.order.confirmedTitle,
+    robots: { index: false, follow: false },
+  }
+})
 
 type Props = { params: Promise<{ id: string }> }
 
-export default async function OrderConfirmedPage({ params }: Props) {
+export default withLocale(async function OrderConfirmedPage({ params }: Props) {
+  const t = getT()
   const { id } = await params
   const order = await retrieveOrder(id)
   if (!order) {
@@ -41,4 +45,4 @@ export default async function OrderConfirmedPage({ params }: Props) {
       </ButtonLink>
     </div>
   )
-}
+})

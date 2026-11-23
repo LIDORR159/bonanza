@@ -5,7 +5,7 @@ import { useEffect, useRef, useTransition } from "react"
 import { buttonClass } from "@/components/ui/button"
 import { inputClass } from "@/components/ui/field"
 import { CloseIcon } from "@/components/ui/icons"
-import { t } from "@/lib/i18n"
+import { useT } from "@/components/i18n/locale-provider"
 import { applyPromoCode, removePromoCode, type PromoState } from "@/lib/medusa/cart"
 import { useFormAction } from "@/components/ui/use-form-action"
 
@@ -13,6 +13,7 @@ const initial: PromoState = { status: "idle" }
 
 /** Discount codes: the ones applied, and a field to add another. */
 export function PromoCodeForm({ applied }: { applied: string[] }) {
+  const t = useT()
   const router = useRouter()
   const { state, action, onSubmit, pending } = useFormAction(applyPromoCode, initial)
   const [removing, startRemoving] = useTransition()
@@ -68,7 +69,11 @@ export function PromoCodeForm({ applied }: { applied: string[] }) {
           placeholder={t.cart.promoPlaceholder}
           className={`${inputClass} h-11 text-start text-sm placeholder:text-end`}
         />
-        <button type="submit" disabled={pending} className={buttonClass("secondary", "md", "shrink-0")}>
+        <button
+          type="submit"
+          disabled={pending}
+          className={buttonClass("secondary", "md", "shrink-0")}
+        >
           {t.cart.promoApply}
         </button>
       </form>

@@ -1,6 +1,8 @@
+"use client"
+
 import { Field } from "@/components/ui/field"
 import { formatIsraeliPhone } from "@/lib/format"
-import { t } from "@/lib/i18n"
+import { useT } from "@/components/i18n/locale-provider"
 
 export type AddressValues = Partial<{
   first_name: string | null
@@ -29,6 +31,7 @@ export function AddressFields({
   /** `shipping` or `billing`, so browsers autofill the right address. */
   autoCompleteSection?: "shipping" | "billing"
 }) {
+  const t = useT()
   const name = (field: string) => `${prefix}${field}`
   const auto = (token: string) =>
     autoCompleteSection ? `${autoCompleteSection} ${token}` : token

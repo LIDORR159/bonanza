@@ -7,7 +7,7 @@ import {
   toCatalogQuery,
   type CatalogSearchParams,
 } from "@/lib/catalog-params"
-import { t } from "@/lib/i18n"
+import { getT } from "@/lib/i18n/server"
 import { searchCatalog, type CatalogQuery } from "@/lib/medusa/catalog"
 import { listCategories } from "@/lib/medusa/categories"
 import { BannerBlock } from "@/components/home/banner-block"
@@ -41,6 +41,7 @@ export async function CatalogView({
   currentCategory?: string
   header?: ReactNode
 }) {
+  const t = getT()
   const params = parseCatalogParams(searchParams)
   const [result, brands, categories, banners] = await Promise.all([
     searchCatalog(toCatalogQuery(params, fixed)),
@@ -51,7 +52,11 @@ export async function CatalogView({
   const brandNames = Object.fromEntries(brands.map((brand) => [brand.handle, brand.name]))
 
   const categoryLinks = [
-    { name: t.catalog.allCategories, href: "/products", current: !currentCategory && !hideBrand },
+    {
+      name: t.catalog.allCategories,
+      href: "/products",
+      current: !currentCategory && !hideBrand,
+    },
     ...categories
       .filter((category) => !category.parent_category_id)
       .map((category) => ({
@@ -67,7 +72,9 @@ export async function CatalogView({
       <header className="mb-8 border-b border-ink-700 pb-7">
         {header}
         <h1 className="text-3xl sm:text-4xl">{title}</h1>
-        {description && <p className="mt-3 max-w-2xl text-lg text-mist-300">{description}</p>}
+        {description && (
+          <p className="mt-3 max-w-2xl text-lg text-mist-300">{description}</p>
+        )}
         <p className="mt-3 text-sm text-mist-400" aria-live="polite">
           {t.catalog.count(result.count)}
         </p>
@@ -91,7 +98,11 @@ export async function CatalogView({
           {result.items.length ? (
             <>
               <ProductGrid products={result.items} columns={3} priorityCount={3} />
-              <Pagination basePath={basePath} params={params} pageCount={result.pageCount} />
+              <Pagination
+                basePath={basePath}
+                params={params}
+                pageCount={result.pageCount}
+              />
             </>
           ) : (
             <div className="rounded-lg border border-ink-600 bg-ink-850 px-6 py-16 text-center">

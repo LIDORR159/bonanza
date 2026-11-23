@@ -1,4 +1,4 @@
-import Link from "next/link"
+import { Link } from "@/components/ui/link"
 import { ProductImage } from "@/components/product/product-image"
 import { ArrowIcon } from "@/components/ui/icons"
 

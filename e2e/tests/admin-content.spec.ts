@@ -22,7 +22,12 @@ async function signIn(page: Page) {
 }
 
 /** The storefront caches pages; a change shows up once the backend's refresh call lands. */
-async function expectOnStorefront(page: Page, path: string, text: string, present = true) {
+async function expectOnStorefront(
+  page: Page,
+  path: string,
+  text: string,
+  present = true
+) {
   await expect
     .poll(
       async () => {
@@ -84,11 +89,19 @@ test.describe("banners", () => {
     await expect(drawer.locator("img").first()).toBeVisible({ timeout: 20_000 })
 
     await drawer.getByRole("button", { name: "Save" }).click()
-    await expect(page.getByRole("row").filter({ hasText: title })).toContainText("Showing")
+    await expect(page.getByRole("row").filter({ hasText: title })).toContainText(
+      "Showing"
+    )
 
     // The image really is stored and served.
-    const list = await adminApi(request, "get", "/admin/cms/banners?placement=catalog_top")
-    const banner = (await list.json()).banners.find((b: { title: string }) => b.title === title)
+    const list = await adminApi(
+      request,
+      "get",
+      "/admin/cms/banners?placement=catalog_top"
+    )
+    const banner = (await list.json()).banners.find(
+      (b: { title: string }) => b.title === title
+    )
     expect(banner.image_url).toMatch(/^https?:\/\//)
     expect((await request.get(banner.image_url)).status()).toBe(200)
 
@@ -109,7 +122,11 @@ test.describe("banners", () => {
   })
 
   test.afterAll(async ({ request }) => {
-    const list = await adminApi(request, "get", "/admin/cms/banners?placement=catalog_top")
+    const list = await adminApi(
+      request,
+      "get",
+      "/admin/cms/banners?placement=catalog_top"
+    )
     for (const banner of (await list.json()).banners) {
       if (banner.title === title) {
         await adminApi(request, "delete", `/admin/cms/banners/${banner.id}`)
@@ -121,14 +138,23 @@ test.describe("banners", () => {
 test.describe("home page", () => {
   let original: string
 
-  test("editing the hero title in the admin changes the storefront", async ({ page, request }) => {
+  test("editing the hero title in the admin changes the storefront", async ({
+    page,
+    request,
+  }) => {
     const list = await adminApi(request, "get", "/admin/cms/sections")
-    original = (await list.json()).sections.find((s: { key: string }) => s.key === "hero").title
+    original = (await list.json()).sections.find(
+      (s: { key: string }) => s.key === "hero"
+    ).title
     const edited = `כותרת בדיקה ${Date.now()}`
 
     await signIn(page)
     await page.goto(`${ADMIN}/content`)
-    await page.getByRole("row").filter({ hasText: "hero" }).getByRole("button", { name: "Edit" }).click()
+    await page
+      .getByRole("row")
+      .filter({ hasText: "hero" })
+      .getByRole("button", { name: "Edit" })
+      .click()
     const drawer = page.getByRole("dialog")
     await drawer.locator("#field-title").fill(edited)
     await drawer.getByRole("button", { name: "Save" }).click()
@@ -140,23 +166,29 @@ test.describe("home page", () => {
 
   test("hiding a section removes it from the home page", async ({ page, request }) => {
     await page.goto("/")
-    await expect(page.locator("#brands")).toBeVisible()
+    await expect(page.locator("#academy")).toBeVisible()
 
     const list = await adminApi(request, "get", "/admin/cms/sections")
-    const brands = (await list.json()).sections.find((s: { key: string }) => s.key === "brands")
-    await adminApi(request, "post", `/admin/cms/sections/${brands.id}`, { is_visible: false })
+    const academy = (await list.json()).sections.find(
+      (s: { key: string }) => s.key === "academy"
+    )
+    await adminApi(request, "post", `/admin/cms/sections/${academy.id}`, {
+      is_visible: false,
+    })
 
     await expect
       .poll(
         async () => {
           await page.goto("/")
-          return page.locator("#brands").count()
+          return page.locator("#academy").count()
         },
         { timeout: 30_000 }
       )
       .toBe(0)
 
-    await adminApi(request, "post", `/admin/cms/sections/${brands.id}`, { is_visible: true })
+    await adminApi(request, "post", `/admin/cms/sections/${academy.id}`, {
+      is_visible: true,
+    })
   })
 
   test.afterAll(async ({ request }) => {
@@ -164,7 +196,9 @@ test.describe("home page", () => {
       return
     }
     const list = await adminApi(request, "get", "/admin/cms/sections")
-    const hero = (await list.json()).sections.find((s: { key: string }) => s.key === "hero")
+    const hero = (await list.json()).sections.find(
+      (s: { key: string }) => s.key === "hero"
+    )
     await adminApi(request, "post", `/admin/cms/sections/${hero.id}`, { title: original })
   })
 })
@@ -193,14 +227,20 @@ test.describe("pages and drafts", () => {
     expect(store.status()).toBe(404)
 
     // A preview link from the admin shows the draft, marked as a preview.
-    const token = await adminApi(request, "post", "/admin/cms/preview-token", { path: `/${slug}` })
+    const token = await adminApi(request, "post", "/admin/cms/preview-token", {
+      path: `/${slug}`,
+    })
     await page.goto((await token.json()).url)
     await expect(page).toHaveURL(new RegExp(`/${slug}$`))
-    await expect(page.getByRole("heading", { name: "עמוד בדיקה", level: 1 })).toBeVisible()
+    await expect(
+      page.getByRole("heading", { name: "עמוד בדיקה", level: 1 })
+    ).toBeVisible()
     await expect(page.getByText("מצב תצוגה מקדימה")).toBeVisible()
     await expect(page.locator("strong", { hasText: "מודגש" })).toBeVisible()
     // Raw HTML typed into a page is never rendered.
-    expect(await page.evaluate(() => (window as unknown as { __xss?: number }).__xss)).toBeUndefined()
+    expect(
+      await page.evaluate(() => (window as unknown as { __xss?: number }).__xss)
+    ).toBeUndefined()
 
     // Leaving preview hides the draft again.
     await page.getByRole("link", { name: "יציאה מתצוגה מקדימה" }).click()
@@ -211,7 +251,9 @@ test.describe("pages and drafts", () => {
     await expect
       .poll(async () => (await page.goto(`/${slug}`))?.status(), { timeout: 30_000 })
       .toBe(200)
-    await expect(page.getByRole("heading", { name: "עמוד בדיקה", level: 1 })).toBeVisible()
+    await expect(
+      page.getByRole("heading", { name: "עמוד בדיקה", level: 1 })
+    ).toBeVisible()
 
     // Scheduling it for the future hides it again until that time.
     const future = new Date(Date.now() + 86_400_000).toISOString()
@@ -245,7 +287,8 @@ test("content changes are written to the activity log", async ({ request }) => {
   expect(actions).toContain("cms.banner.created")
   expect(actions).toContain("cms.homepage_section.updated")
   // Entries name the admin who made the change.
-  expect(entries.find((entry: { action: string }) => entry.action === "cms.banner.created").actor_id).toMatch(
-    /^user_/
-  )
+  expect(
+    entries.find((entry: { action: string }) => entry.action === "cms.banner.created")
+      .actor_id
+  ).toMatch(/^user_/)
 })

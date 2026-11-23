@@ -1,18 +1,23 @@
 import type { Metadata } from "next"
 import { BrandStrip } from "@/components/home/brand-strip"
 import { Breadcrumbs } from "@/components/ui/breadcrumbs"
-import { REVALIDATE_SECONDS } from "@/lib/config"
-import { t } from "@/lib/i18n"
+import { alternates, getT, withLocale } from "@/lib/i18n/server"
 import { listBrands } from "@/lib/medusa/content"
 
-export const revalidate = REVALIDATE_SECONDS
+// Next.js reads this export without running the file, so it has to be a
+// literal. Keep it equal to REVALIDATE_SECONDS in lib/config.ts.
+export const revalidate = 300
 
-export const metadata: Metadata = {
-  title: t.catalog.brandsTitle,
-  alternates: { canonical: "/brands" },
-}
+export const generateMetadata = withLocale((): Metadata => {
+  const t = getT()
+  return {
+    title: t.catalog.brandsTitle,
+    alternates: alternates("/brands"),
+  }
+})
 
-export default async function BrandsPage() {
+export default withLocale(async function BrandsPage() {
+  const t = getT()
   const brands = await listBrands()
   return (
     <div className="container-site pb-8 pt-8 lg:pt-10">
@@ -25,4 +30,4 @@ export default async function BrandsPage() {
       )}
     </div>
   )
-}
+})

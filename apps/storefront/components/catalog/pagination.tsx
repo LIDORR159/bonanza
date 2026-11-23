@@ -1,7 +1,7 @@
 import clsx from "clsx"
-import Link from "next/link"
+import { Link } from "@/components/ui/link"
 import { catalogHref, type ParsedCatalogParams } from "@/lib/catalog-params"
-import { t } from "@/lib/i18n"
+import { getT } from "@/lib/i18n/server"
 
 const cell =
   "inline-flex h-10 min-w-10 items-center justify-center rounded-md border px-3 text-sm transition"
@@ -16,6 +16,7 @@ export function Pagination({
   params: ParsedCatalogParams
   pageCount: number
 }) {
+  const t = getT()
   if (pageCount <= 1) {
     return null
   }
@@ -34,7 +35,10 @@ export function Pagination({
             <Link
               href={href(current - 1)}
               rel="prev"
-              className={clsx(cell, "border-ink-500 text-mist-200 hover:border-paper hover:text-paper")}
+              className={clsx(
+                cell,
+                "border-ink-500 text-mist-200 hover:border-paper hover:text-paper"
+              )}
             >
               {t.catalog.previous}
             </Link>
@@ -59,7 +63,10 @@ export function Pagination({
               <Link
                 href={href(page)}
                 aria-label={t.catalog.page(page)}
-                className={clsx(cell, "border-ink-500 text-mist-200 hover:border-paper hover:text-paper")}
+                className={clsx(
+                  cell,
+                  "border-ink-500 text-mist-200 hover:border-paper hover:text-paper"
+                )}
               >
                 {page}
               </Link>
@@ -71,7 +78,10 @@ export function Pagination({
             <Link
               href={href(current + 1)}
               rel="next"
-              className={clsx(cell, "border-ink-500 text-mist-200 hover:border-paper hover:text-paper")}
+              className={clsx(
+                cell,
+                "border-ink-500 text-mist-200 hover:border-paper hover:text-paper"
+              )}
             >
               {t.catalog.next}
             </Link>

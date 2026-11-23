@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import Link from "next/link"
+import { Link } from "@/components/ui/link"
 import { notFound } from "next/navigation"
 import { ProductGrid } from "@/components/product/product-card"
 import { ProductGallery } from "@/components/product/product-gallery"
@@ -11,9 +11,8 @@ import { JsonLd, productJsonLd } from "@/components/seo/json-ld"
 import { Breadcrumbs } from "@/components/ui/breadcrumbs"
 import { TruckIcon } from "@/components/ui/icons"
 import { SectionHeading } from "@/components/ui/section-heading"
-import { REVALIDATE_SECONDS } from "@/lib/config"
 import { formatPrice } from "@/lib/format"
-import { t } from "@/lib/i18n"
+import { alternates, getT, withLocale } from "@/lib/i18n/server"
 import { searchCatalog } from "@/lib/medusa/catalog"
 import { getSettings } from "@/lib/medusa/content"
 import { getProductByHandle } from "@/lib/medusa/products"
@@ -25,7 +24,9 @@ import {
   variantPrice,
 } from "@/lib/product"
 
-export const revalidate = REVALIDATE_SECONDS
+// Next.js reads this export without running the file, so it has to be a
+// literal. Keep it equal to REVALIDATE_SECONDS in lib/config.ts.
+export const revalidate = 300
 
 /** Rendered on first request, then cached and refreshed in the background. */
 export function generateStaticParams() {
@@ -34,7 +35,9 @@ export function generateStaticParams() {
 
 type Props = { params: Promise<{ handle: string }> }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export const generateMetadata = withLocale(async function generateMetadata({
+  params,
+}: Props): Promise<Metadata> {
   const { handle } = await params
   const product = await getProductByHandle(handle)
   if (!product) {
@@ -43,22 +46,29 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const metadata = (product.metadata ?? {}) as Record<string, string>
   const images = (product.images ?? []).map((image) => image.url)
   const description =
-    metadata.seo_description || product.subtitle || product.description?.slice(0, 160) || undefined
+    metadata.seo_description ||
+    product.subtitle ||
+    product.description?.slice(0, 160) ||
+    undefined
   return {
     title: metadata.seo_title || product.title,
     description,
-    alternates: { canonical: `/products/${product.handle}` },
+    alternates: alternates(`/products/${product.handle}`),
     openGraph: {
       title: metadata.seo_title || product.title,
       description,
       images: metadata.seo_og_image ? [metadata.seo_og_image] : images.slice(0, 1),
     },
   }
-}
+})
 
-export default async function ProductPage({ params }: Props) {
+export default withLocale(async function ProductPage({ params }: Props) {
+  const t = getT()
   const { handle } = await params
-  const [product, settings] = await Promise.all([getProductByHandle(handle), getSettings()])
+  const [product, settings] = await Promise.all([
+    getProductByHandle(handle),
+    getSettings(),
+  ])
   if (!product) {
     notFound()
   }
@@ -89,7 +99,7 @@ export default async function ProductPage({ params }: Props) {
       )
     )
   )
-  const specs = productSpecs(product)
+  const specs = productSpecs(product, t)
   const category = product.categories?.[0]
   const related = category
     ? (await searchCatalog({ categoryId: category.id, pageSize: 5 })).items
@@ -123,7 +133,9 @@ export default async function ProductPage({ params }: Props) {
             </Link>
           )}
           <h1 className="mt-2 text-3xl leading-tight sm:text-4xl">{product.title}</h1>
-          {product.subtitle && <p className="mt-2 text-lg text-mist-300">{product.subtitle}</p>}
+          {product.subtitle && (
+            <p className="mt-2 text-lg text-mist-300">{product.subtitle}</p>
+          )}
 
           <div className="mt-6 border-t border-ink-700 pt-6">
             <ProductPurchase options={options} variants={variants} />
@@ -183,4 +195,4 @@ export default async function ProductPage({ params }: Props) {
       )}
     </div>
   )
-}
+})

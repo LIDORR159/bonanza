@@ -60,7 +60,9 @@ export const toCatalogQuery = (
 export function catalogHref(
   basePath: string,
   parsed: ParsedCatalogParams,
-  changes: Partial<Record<"q" | "brand" | "min" | "max" | "sale" | "sort" | "page", string | null>>
+  changes: Partial<
+    Record<"q" | "brand" | "min" | "max" | "sale" | "sort" | "page", string | null>
+  >
 ): string {
   const params = new URLSearchParams()
   const current: Record<string, string | undefined> = {

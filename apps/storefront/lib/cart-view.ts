@@ -30,6 +30,12 @@ export function summaryTotals(source: Totalled): SummaryTotals {
 
 type LineItem = HttpTypes.StoreCartLineItem | HttpTypes.StoreOrderLineItem
 
+/**
+ * What the only variant of a single-version product is called, in each
+ * language the catalog is translated to.
+ */
+const SINGLE_VERSION_TITLES = new Set(["סטנדרט", "Standard", "قياسي"])
+
 export function toCartLine(item: LineItem): CartLine {
   const variant = item.variant as HttpTypes.StoreProductVariant | undefined
   const unitPrice = Number(item.unit_price ?? 0)
@@ -42,7 +48,8 @@ export function toCartLine(item: LineItem): CartLine {
     // A product sold in one version has a variant named after the option's
     // only value; showing it would add nothing.
     variantTitle:
-      (item.variant?.options?.length ?? 0) > 0 && item.variant_title !== "סטנדרט"
+      (item.variant?.options?.length ?? 0) > 0 &&
+      !SINGLE_VERSION_TITLES.has(item.variant_title ?? "")
         ? (item.variant_title ?? null)
         : null,
     handle: item.product_handle ?? item.product?.handle ?? null,

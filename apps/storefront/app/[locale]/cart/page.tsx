@@ -6,18 +6,22 @@ import { ButtonLink } from "@/components/ui/button"
 import { LockIcon } from "@/components/ui/icons"
 import { summaryTotals, toCartLine } from "@/lib/cart-view"
 import { formatPrice } from "@/lib/format"
-import { t } from "@/lib/i18n"
+import { getT, withLocale } from "@/lib/i18n/server"
 import { retrieveCart } from "@/lib/medusa/cart-data"
 import { getSettings } from "@/lib/medusa/content"
 
 export const dynamic = "force-dynamic"
 
-export const metadata: Metadata = {
-  title: t.cart.title,
-  robots: { index: false, follow: false },
-}
+export const generateMetadata = withLocale((): Metadata => {
+  const t = getT()
+  return {
+    title: t.cart.title,
+    robots: { index: false, follow: false },
+  }
+})
 
-export default async function CartPage() {
+export default withLocale(async function CartPage() {
+  const t = getT()
   const [cart, settings] = await Promise.all([retrieveCart(), getSettings()])
   const lines = (cart?.items ?? [])
     .slice()
@@ -56,7 +60,9 @@ export default async function CartPage() {
                   </bdi>
                 </>
               ) : (
-                <span className="font-semibold text-success">{t.cart.freeShippingReached}</span>
+                <span className="font-semibold text-success">
+                  {t.cart.freeShippingReached}
+                </span>
               )}
             </p>
           )}
@@ -82,4 +88,4 @@ export default async function CartPage() {
       </div>
     </div>
   )
-}
+})

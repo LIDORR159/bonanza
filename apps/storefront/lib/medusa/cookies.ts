@@ -13,7 +13,12 @@ const CART_COOKIE = "bnz_cart"
 const AUTH_COOKIE = "bnz_session"
 const WEEK = 60 * 60 * 24 * 7
 
-const base = { httpOnly: true, sameSite: "lax" as const, secure: IS_PRODUCTION, path: "/" }
+const base = {
+  httpOnly: true,
+  sameSite: "lax" as const,
+  secure: IS_PRODUCTION,
+  path: "/",
+}
 
 export async function getCartId(): Promise<string | undefined> {
   return (await cookies()).get(CART_COOKIE)?.value

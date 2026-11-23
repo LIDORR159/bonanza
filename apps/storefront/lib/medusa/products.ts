@@ -3,7 +3,12 @@ import type { HttpTypes } from "@medusajs/types"
 import { cachedFetch } from "./client"
 import { getRegion } from "./regions"
 
-export type ProductBrand = { id: string; name: string; handle: string; logo_url: string | null }
+export type ProductBrand = {
+  id: string
+  name: string
+  handle: string
+  logo_url: string | null
+}
 export type StoreProduct = HttpTypes.StoreProduct & { brand?: ProductBrand | null }
 
 const DETAIL_FIELDS = [
@@ -30,10 +35,13 @@ const DETAIL_FIELDS = [
 export async function getProductByHandle(handle: string): Promise<StoreProduct | null> {
   const region = await getRegion()
   try {
-    const { products } = await cachedFetch<{ products: StoreProduct[] }>("/store/products", {
-      query: { handle, region_id: region.id, fields: DETAIL_FIELDS, limit: 1 },
-      tags: ["products", "brands"],
-    })
+    const { products } = await cachedFetch<{ products: StoreProduct[] }>(
+      "/store/products",
+      {
+        query: { handle, region_id: region.id, fields: DETAIL_FIELDS, limit: 1 },
+        tags: ["products", "brands"],
+      }
+    )
     return products[0] ?? null
   } catch {
     return null
@@ -41,7 +49,9 @@ export async function getProductByHandle(handle: string): Promise<StoreProduct |
 }
 
 /** Handles of every published product, for the sitemap. */
-export async function listProductHandles(): Promise<{ handle: string; updated_at: string }[]> {
+export async function listProductHandles(): Promise<
+  { handle: string; updated_at: string }[]
+> {
   const all: { handle: string; updated_at: string }[] = []
   const limit = 200
   try {

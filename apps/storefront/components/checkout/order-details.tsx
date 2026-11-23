@@ -3,7 +3,7 @@ import { AddressBlock } from "@/components/checkout/checkout-review"
 import { OrderSummary } from "@/components/cart/order-summary"
 import { summaryTotals, toCartLine } from "@/lib/cart-view"
 import { formatDate, formatPrice } from "@/lib/format"
-import { t } from "@/lib/i18n"
+import { getT, intlCode } from "@/lib/i18n/server"
 import type { StoreOrder } from "@/lib/medusa/customer-data"
 
 const Fact = ({ label, children }: { label: string; children: React.ReactNode }) => (
@@ -15,6 +15,7 @@ const Fact = ({ label, children }: { label: string; children: React.ReactNode })
 
 /** An order laid out for reading: facts, items, address and totals. */
 export function OrderDetails({ order }: { order: StoreOrder }) {
+  const t = getT()
   const lines = (order.items ?? []).map(toCartLine)
   return (
     <div className="grid gap-10 lg:grid-cols-[1fr_24rem]">
@@ -23,12 +24,13 @@ export function OrderDetails({ order }: { order: StoreOrder }) {
           <Fact label={t.order.number}>
             <bdi dir="ltr">#{order.display_id}</bdi>
           </Fact>
-          <Fact label={t.order.date}>{formatDate(order.created_at)}</Fact>
+          <Fact label={t.order.date}>{formatDate(order.created_at, intlCode())}</Fact>
           <Fact label={t.order.paymentStatus}>
             {t.order.statuses.payment[order.payment_status] ?? order.payment_status}
           </Fact>
           <Fact label={t.order.fulfillmentStatus}>
-            {t.order.statuses.fulfillment[order.fulfillment_status] ?? order.fulfillment_status}
+            {t.order.statuses.fulfillment[order.fulfillment_status] ??
+              order.fulfillment_status}
           </Fact>
         </dl>
 
@@ -41,7 +43,13 @@ export function OrderDetails({ order }: { order: StoreOrder }) {
               <li key={line.id} className="flex items-center gap-4 py-4">
                 <div className="product-well relative size-16 shrink-0 overflow-hidden rounded-md">
                   {line.thumbnail && (
-                    <Image src={line.thumbnail} alt="" fill sizes="64px" className="object-contain p-1.5" />
+                    <Image
+                      src={line.thumbnail}
+                      alt=""
+                      fill
+                      sizes="64px"
+                      className="object-contain p-1.5"
+                    />
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -70,7 +78,9 @@ export function OrderDetails({ order }: { order: StoreOrder }) {
           </section>
           <section>
             <h2 className="mb-2 text-base">{t.order.shippingMethod}</h2>
-            <p className="text-[0.95rem] text-mist-200">{order.shipping_methods?.[0]?.name}</p>
+            <p className="text-[0.95rem] text-mist-200">
+              {order.shipping_methods?.[0]?.name}
+            </p>
           </section>
         </div>
       </div>

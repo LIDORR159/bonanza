@@ -1,17 +1,23 @@
 import type { StoreHomepageSection } from "@bonanza/types"
 import Image from "next/image"
 import { ProductCard } from "@/components/product/product-card"
+import { BookingLink } from "@/components/ui/booking-link"
 import { ButtonLink } from "@/components/ui/button"
-import { t } from "@/lib/i18n"
+import { getT } from "@/lib/i18n/server"
 import type { CatalogItem } from "@/lib/medusa/catalog"
 
+/** Shown until a hero photograph is uploaded in the admin. */
+const DEFAULT_IMAGE = "/home/hero.jpg"
+
+const isExternal = (url: string) => /^https?:\/\//.test(url)
+
 /**
- * The opening section, after the first reference design: a large headline,
- * one line of copy and a solid white button on the reading side, a visual on
- * the other, and a row of product cards overlapping the bottom edge.
+ * The opening section: a large headline, one line of copy and the two main
+ * actions on the reading side, a framed photograph on the other.
  *
- * With no image set in the admin the visual is the brand's barber pole under a
- * spotlight.
+ * The first action is normally the booking link, which leaves the site, so it
+ * opens in a new tab. When a product rail directly follows the hero, its cards
+ * overlap the hero's bottom edge.
  */
 export function Hero({
   section,
@@ -20,39 +26,28 @@ export function Hero({
 }: {
   section: Pick<
     StoreHomepageSection,
-    "title" | "subtitle" | "image_url" | "mobile_image_url" | "image_alt" | "cta" | "secondary_cta"
+    "title" | "subtitle" | "image_url" | "image_alt" | "cta" | "secondary_cta"
   >
   /** Cards that overlap the hero's bottom edge. */
   products?: CatalogItem[]
   productsTitle?: string | null
 }) {
+  const t = getT()
   const overlap = (products ?? []).slice(0, 4)
+  const primary = section.cta ?? { label: t.home.shopNow, url: "/products" }
+
   return (
     <>
       <section className="grain relative isolate overflow-hidden bg-ink-900">
-        {/* Spotlight on the visual side, falling off into the page colour. */}
+        {/* Light falling on the photograph's side, fading into the page colour. */}
         <div
           aria-hidden="true"
-          className="absolute inset-0 -z-10 bg-[radial-gradient(60%_70%_at_22%_38%,rgb(255_255_255/0.13),transparent_70%),linear-gradient(180deg,transparent_55%,var(--color-ink-950))]"
+          className="absolute inset-0 -z-10 bg-[radial-gradient(55%_65%_at_22%_40%,rgb(255_255_255/0.1),transparent_70%),linear-gradient(180deg,transparent_60%,var(--color-ink-950))] ltr:-scale-x-100"
         />
-        {section.image_url && (
-          <div className="absolute inset-y-0 end-0 -z-10 w-full lg:w-[58%]">
-            <Image
-              src={section.image_url}
-              alt={section.image_alt ?? ""}
-              fill
-              priority
-              sizes="(min-width: 1024px) 58vw, 100vw"
-              className="object-cover object-top opacity-45 grayscale lg:opacity-90"
-            />
-            <div className="absolute inset-0 bg-gradient-to-l from-ink-900 via-ink-900/55 to-transparent lg:via-ink-900/20" />
-            <div className="absolute inset-0 bg-gradient-to-t from-ink-950 via-transparent to-transparent" />
-          </div>
-        )}
 
         <div
-          className={`container-site grid items-center gap-8 pt-14 lg:grid-cols-[1.05fr_0.95fr] lg:pt-20 ${
-            overlap.length ? "pb-44 sm:pb-52 lg:pb-60" : "pb-16 lg:pb-24"
+          className={`container-site grid items-center gap-10 pt-12 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14 lg:pt-20 ${
+            overlap.length ? "pb-44 sm:pb-52 lg:pb-60" : "pb-14 lg:pb-24"
           }`}
         >
           <div className="animate-rise">
@@ -68,34 +63,46 @@ export function Hero({
               </p>
             )}
             <div className="mt-8 flex flex-wrap gap-3">
-              <ButtonLink href={section.cta?.url ?? "/products"} size="lg">
-                {section.cta?.label ?? t.home.shopNow}
-              </ButtonLink>
+              {isExternal(primary.url) ? (
+                <BookingLink href={primary.url} label={primary.label} size="lg" icon />
+              ) : (
+                <ButtonLink href={primary.url} size="lg">
+                  {primary.label}
+                </ButtonLink>
+              )}
               {section.secondary_cta && (
-                <ButtonLink href={section.secondary_cta.url} size="lg" variant="secondary">
+                <ButtonLink
+                  href={section.secondary_cta.url}
+                  size="lg"
+                  variant="secondary"
+                >
                   {section.secondary_cta.label}
                 </ButtonLink>
               )}
             </div>
           </div>
 
-          {!section.image_url && (
+          <div className="relative animate-fade">
+            {/* An offset hairline frame behind the photograph. */}
             <div
               aria-hidden="true"
-              className="pointer-events-none relative hidden h-[26rem] items-center justify-center lg:flex"
-            >
-              <div className="absolute size-[30rem] rounded-full bg-[radial-gradient(closest-side,rgb(255_255_255/0.2),transparent)] blur-2xl" />
+              className="absolute -bottom-3 -end-3 start-6 top-6 rounded-xl border border-ink-500/70"
+            />
+            <div className="relative aspect-[3/2] overflow-hidden rounded-xl border border-ink-600 bg-ink-850 shadow-raised">
               <Image
-                src="/brand/barber-pole.webp"
-                alt=""
-                width={180}
-                height={512}
+                src={section.image_url || DEFAULT_IMAGE}
+                alt={section.image_alt ?? ""}
+                fill
                 priority
-                unoptimized
-                className="relative h-[25rem] w-auto drop-shadow-[0_30px_40px_rgb(0_0_0/0.75)] animate-fade"
+                sizes="(min-width: 1024px) 46vw, 100vw"
+                className="object-cover"
+              />
+              <div
+                aria-hidden="true"
+                className="absolute inset-0 bg-gradient-to-t from-ink-950/55 via-transparent to-transparent"
               />
             </div>
-          )}
+          </div>
         </div>
       </section>
 
@@ -111,7 +118,11 @@ export function Hero({
                 className="animate-rise"
                 style={{ animationDelay: `${120 + index * 80}ms` }}
               >
-                <ProductCard product={product} priority sizes="(min-width: 1024px) 22vw, 46vw" />
+                <ProductCard
+                  product={product}
+                  priority
+                  sizes="(min-width: 1024px) 22vw, 46vw"
+                />
               </li>
             ))}
           </ul>

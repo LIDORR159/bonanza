@@ -5,7 +5,7 @@ import { AddressFields, type AddressValues } from "@/components/checkout/address
 import { Button } from "@/components/ui/button"
 import { Field, FormMessage } from "@/components/ui/field"
 import { formatIsraeliPhone } from "@/lib/format"
-import { t } from "@/lib/i18n"
+import { useT } from "@/components/i18n/locale-provider"
 import { saveAddress, updateProfile, type FormState } from "@/lib/medusa/customer"
 import { useFormAction } from "@/components/ui/use-form-action"
 
@@ -22,6 +22,7 @@ export function ProfileForm({
   phone: string
   email: string
 }) {
+  const t = useT()
   const { state, action, onSubmit, pending } = useFormAction(updateProfile, idle)
   const errors = state.fieldErrors ?? {}
   return (
@@ -44,7 +45,14 @@ export function ProfileForm({
           error={errors.last_name}
         />
       </div>
-      <Field label={t.account.email} name="email_display" ltr required defaultValue={email} disabled />
+      <Field
+        label={t.account.email}
+        name="email_display"
+        ltr
+        required
+        defaultValue={email}
+        disabled
+      />
       <Field
         label={t.checkout.phone}
         name="phone"
@@ -77,6 +85,7 @@ export function AddressForm({
   values?: AddressValues
   isDefault?: boolean
 }) {
+  const t = useT()
   const { state, action, onSubmit, pending } = useFormAction(saveAddress, idle)
   const formRef = useRef<HTMLFormElement>(null)
 
@@ -87,7 +96,13 @@ export function AddressForm({
   }, [state, addressId])
 
   return (
-    <form ref={formRef} action={action} onSubmit={onSubmit} className="space-y-4" noValidate>
+    <form
+      ref={formRef}
+      action={action}
+      onSubmit={onSubmit}
+      className="space-y-4"
+      noValidate
+    >
       {addressId && <input type="hidden" name="address_id" value={addressId} />}
       <AddressFields values={values} errors={state.fieldErrors ?? {}} />
       <label className="flex cursor-pointer items-center gap-3 text-[0.95rem] text-mist-200">

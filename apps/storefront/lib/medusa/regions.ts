@@ -5,10 +5,13 @@ import { cachedFetch } from "./client"
 
 /** The store's single sales region. Prices and taxes are calculated for it. */
 export async function getRegion(): Promise<HttpTypes.StoreRegion> {
-  const { regions } = await cachedFetch<{ regions: HttpTypes.StoreRegion[] }>("/store/regions", {
-    tags: ["cms"],
-    revalidate: 3600,
-  })
+  const { regions } = await cachedFetch<{ regions: HttpTypes.StoreRegion[] }>(
+    "/store/regions",
+    {
+      tags: ["cms"],
+      revalidate: 3600,
+    }
+  )
   const region =
     regions.find((candidate) =>
       candidate.countries?.some((country) => country.iso_2 === DEFAULT_COUNTRY)

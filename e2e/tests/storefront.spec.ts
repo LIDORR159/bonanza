@@ -11,8 +11,13 @@ const PAGES = [
   "/products/stahlwerk-x1-cordless-clipper",
   "/brands",
   "/about",
+  "/gallery",
   "/cart",
   "/account/login",
+  // English reads left to right: the mirrored layout gets the same checks.
+  "/en",
+  "/en/products",
+  "/ar",
 ]
 
 test("the page is Hebrew and right-to-left", async ({ page }) => {
@@ -24,7 +29,10 @@ test("the page is Hebrew and right-to-left", async ({ page }) => {
   // Right-to-left for real: the logo sits at the right edge of the header and
   // the cart at the left.
   const viewport = page.viewportSize()!
-  const logo = await page.getByRole("banner").getByRole("link", { name: /BONANZA/ }).boundingBox()
+  const logo = await page
+    .getByRole("banner")
+    .getByRole("link", { name: /BONANZA/ })
+    .boundingBox()
   const cart = await page.getByRole("link", { name: /סל הקניות/ }).boundingBox()
   expect(logo!.x + logo!.width / 2).toBeGreaterThan(viewport.width / 2)
   expect(cart!.x + cart!.width / 2).toBeLessThan(viewport.width / 2)
@@ -32,13 +40,17 @@ test("the page is Hebrew and right-to-left", async ({ page }) => {
 
 test("the logo is the supplied file, undistorted", async ({ page }) => {
   await page.goto("/")
-  const logo = page.getByRole("banner").getByRole("img", { name: /BONANZA BARBERSHOP & ACADEMY/ })
+  const logo = page
+    .getByRole("banner")
+    .getByRole("img", { name: /BONANZA BARBERSHOP & ACADEMY/ })
   await expect(logo).toBeVisible()
   await expect(logo).toHaveAttribute("src", /bonanza-lockup/)
   const box = (await logo.boundingBox())!
   // The lockup's own proportions, 1822:735.
   expect(box.width / box.height).toBeCloseTo(1822 / 735, 1)
-  expect(await logo.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0)
+  expect(
+    await logo.evaluate((img: HTMLImageElement) => img.naturalWidth)
+  ).toBeGreaterThan(0)
 })
 
 for (const path of PAGES) {
@@ -80,24 +92,65 @@ test("prices show the shekel sign before the number", async ({ page }) => {
 test("the home page comes from the admin's sections, in order", async ({ page }) => {
   await page.goto("/")
   const headings = await page.getByRole("heading", { level: 2 }).allTextContents()
-  expect(headings).toEqual(expect.arrayContaining(["קטגוריות", "הנמכרים ביותר", "המותגים שלנו"]))
-  expect(headings.indexOf("קטגוריות")).toBeLessThan(headings.indexOf("המותגים שלנו"))
-  // The row of cards overlapping the hero.
-  await expect(page.getByRole("article").first()).toBeVisible()
+  expect(headings).toEqual(expect.arrayContaining(["מחירון", "עבודות"]))
+  expect(headings.indexOf("מחירון")).toBeLessThan(headings.indexOf("עבודות"))
+  // The shop rail between them shows products.
+  await expect(page.locator("#shop").getByRole("article").first()).toBeVisible()
 })
 
-test("navigation reaches a category", async ({ page, isMobile }) => {
-  await page.goto("/")
-  if (isMobile) {
-    await page.getByRole("button", { name: "פתיחת התפריט" }).click()
-    await page.getByRole("dialog").getByRole("link", { name: "טרימרים" }).click()
-  } else {
-    const nav = page.getByRole("navigation", { name: "ניווט ראשי" })
-    await nav.getByRole("button", { name: "כל המוצרים" }).click()
-    await nav.getByRole("link", { name: "טרימרים" }).click()
+test("the menu reaches the shop and the gallery", async ({ page, isMobile }) => {
+  const open = async (name: string) => {
+    await page.goto("/")
+    if (isMobile) {
+      await page.getByRole("button", { name: "פתיחת התפריט" }).click()
+      await page.getByRole("dialog").getByRole("link", { name, exact: true }).click()
+    } else {
+      await page
+        .getByRole("navigation", { name: "ניווט ראשי" })
+        .getByRole("link", { name, exact: true })
+        .click()
+    }
   }
-  await expect(page).toHaveURL(/\/categories\/trimmers/)
-  await expect(page.getByRole("heading", { name: "טרימרים", level: 1 })).toBeVisible()
+  await open("חנות")
+  await expect(page).toHaveURL(/\/products$/)
+  await open("עבודות")
+  await expect(page).toHaveURL(/\/gallery$/)
+  await expect(page.getByRole("heading", { name: "עבודות", level: 1 })).toBeVisible()
+})
+
+test("on a phone, the menu closes after jumping to a section of the same page", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(!isMobile, "the full-screen menu is the phone layout")
+  await page.goto("/")
+  await page.getByRole("button", { name: "פתיחת התפריט" }).click()
+  await page
+    .getByRole("dialog")
+    .getByRole("link", { name: "מחירון", exact: true })
+    .click()
+  await expect(page.getByRole("dialog")).toHaveCount(0)
+  await expect(
+    page.locator("#pricing").getByRole("heading", { level: 2 })
+  ).toBeInViewport()
+})
+
+test("on a phone, booking, language and search are in the menu", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(!isMobile, "the full-screen menu is the phone layout")
+  await page.goto("/")
+  // The booking button stays in the header at every width.
+  await expect(
+    page.getByRole("banner").getByRole("link", { name: /^קביעת תור/ })
+  ).toBeVisible()
+  await page.getByRole("button", { name: "פתיחת התפריט" }).click()
+  const menu = page.getByRole("dialog")
+  await expect(menu.getByRole("group", { name: "שפה" }).getByRole("link")).toHaveCount(3)
+  await menu.getByRole("searchbox").fill("מספריים")
+  await menu.getByRole("searchbox").press("Enter")
+  await expect(page).toHaveURL(/\/products\?q=/)
 })
 
 test("keyboard users can skip to the content", async ({ page, isMobile }) => {

@@ -1,6 +1,8 @@
+"use client"
+
 import clsx from "clsx"
 import { formatPrice } from "@/lib/format"
-import { t } from "@/lib/i18n"
+import { useT } from "@/components/i18n/locale-provider"
 
 type Props = {
   amount: number | null | undefined
@@ -23,13 +25,16 @@ const sizes = {
  * and the digits keep their order inside right-to-left text.
  */
 export function Price({ amount, original, from, size = "md", className }: Props) {
+  const t = useT()
   if (amount == null) {
     return null
   }
   const onSale = original != null && original > amount
   return (
     <span className={clsx("inline-flex flex-wrap items-baseline gap-x-2", className)}>
-      {from && <span className={clsx("text-mist-400", sizes[size].was)}>{t.product.from}</span>}
+      {from && (
+        <span className={clsx("text-mist-400", sizes[size].was)}>{t.product.from}</span>
+      )}
       <span className={clsx("font-bold text-paper", sizes[size].now)}>
         {onSale && <span className="sr-only">{t.product.salePrice}: </span>}
         <bdi dir="ltr">{formatPrice(amount)}</bdi>

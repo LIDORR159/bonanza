@@ -30,7 +30,9 @@ export function BannerBlock({ banner }: { banner: StoreBanner }) {
       )}
       <div className="flex min-h-56 flex-col items-start justify-center gap-4 p-7 sm:p-12 lg:max-w-[62%]">
         <h2 className="text-3xl sm:text-4xl">{banner.title}</h2>
-        {banner.subtitle && <p className="max-w-lg text-lg text-mist-300">{banner.subtitle}</p>}
+        {banner.subtitle && (
+          <p className="max-w-lg text-lg text-mist-300">{banner.subtitle}</p>
+        )}
         {banner.target_url && banner.cta_label && (
           <ButtonLink href={banner.target_url} className="mt-2">
             {banner.cta_label}

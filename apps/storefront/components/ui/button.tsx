@@ -1,5 +1,5 @@
 import clsx from "clsx"
-import Link from "next/link"
+import { Link } from "@/components/ui/link"
 import type { ComponentProps, ReactNode } from "react"
 
 type Variant = "primary" | "secondary" | "ghost"
@@ -23,13 +23,24 @@ const sizes: Record<Size, string> = {
   lg: "h-13 px-8 text-base",
 }
 
-export const buttonClass = (variant: Variant = "primary", size: Size = "md", extra?: string) =>
-  clsx(base, variants[variant], sizes[size], extra)
+export const buttonClass = (
+  variant: Variant = "primary",
+  size: Size = "md",
+  extra?: string
+) => clsx(base, variants[variant], sizes[size], extra)
 
 type ButtonProps = ComponentProps<"button"> & { variant?: Variant; size?: Size }
 
-export function Button({ variant, size, className, type = "button", ...props }: ButtonProps) {
-  return <button type={type} className={buttonClass(variant, size, className)} {...props} />
+export function Button({
+  variant,
+  size,
+  className,
+  type = "button",
+  ...props
+}: ButtonProps) {
+  return (
+    <button type={type} className={buttonClass(variant, size, className)} {...props} />
+  )
 }
 
 type ButtonLinkProps = {
@@ -42,7 +53,14 @@ type ButtonLinkProps = {
 }
 
 /** A link that looks like a button. External addresses open as plain anchors. */
-export function ButtonLink({ href, variant, size, className, children, target }: ButtonLinkProps) {
+export function ButtonLink({
+  href,
+  variant,
+  size,
+  className,
+  children,
+  target,
+}: ButtonLinkProps) {
   const classes = buttonClass(variant, size, className)
   if (/^https?:\/\//.test(href)) {
     return (

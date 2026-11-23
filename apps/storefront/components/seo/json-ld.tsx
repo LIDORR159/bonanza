@@ -1,6 +1,7 @@
 import type { StoreSiteSettings } from "@bonanza/types"
 import type { HttpTypes } from "@medusajs/types"
-import { CURRENCY, SITE_URL } from "@/lib/config"
+import { CURRENCY, DEFAULT_LOCALE, LOCALES, SITE_URL, type Locale } from "@/lib/config"
+import { localePath } from "@/lib/i18n"
 import { cheapestPrice, stockState } from "@/lib/product"
 
 /**
@@ -16,12 +17,34 @@ export function JsonLd({ data }: { data: Record<string, unknown> }) {
   )
 }
 
+/**
+ * The business itself. With an address in site settings it is described as a
+ * barbershop people can visit; before that, as a plain organization.
+ *
+ * Two things are left out on purpose. Opening hours are free text in the
+ * admin and cannot be turned into schema.org's fixed format reliably. The
+ * Google score is not repeated as a rating: search engines do not accept a
+ * business marking up reviews collected elsewhere.
+ */
 export const organizationJsonLd = (settings: StoreSiteSettings) => ({
   "@context": "https://schema.org",
-  "@type": "Organization",
+  "@type": settings.address ? "HairSalon" : "Organization",
   name: settings.store_name,
   url: SITE_URL,
   logo: `${SITE_URL}/brand/bonanza-lockup-720.png`,
+  image: `${SITE_URL}/brand/og-default.jpg`,
+  ...(settings.address
+    ? {
+        address: {
+          "@type": "PostalAddress",
+          streetAddress: settings.address.replace(/\s+/g, " ").trim(),
+          addressCountry: "IL",
+        },
+        telephone: settings.contact_phone ?? undefined,
+        hasMap: settings.map_link_url ?? undefined,
+        currenciesAccepted: CURRENCY,
+      }
+    : {}),
   ...(settings.contact_phone || settings.contact_email
     ? {
         contactPoint: {
@@ -29,7 +52,15 @@ export const organizationJsonLd = (settings: StoreSiteSettings) => ({
           contactType: "customer service",
           telephone: settings.contact_phone ?? undefined,
           email: settings.contact_email ?? undefined,
-          availableLanguage: ["he"],
+          availableLanguage: [...LOCALES],
+        },
+      }
+    : {}),
+  ...(settings.booking_url
+    ? {
+        potentialAction: {
+          "@type": "ReserveAction",
+          target: settings.booking_url,
         },
       }
     : {}),
@@ -41,15 +72,18 @@ export const organizationJsonLd = (settings: StoreSiteSettings) => ({
   ].filter(Boolean),
 })
 
-export const websiteJsonLd = (settings: StoreSiteSettings) => ({
+export const websiteJsonLd = (
+  settings: StoreSiteSettings,
+  locale: Locale = DEFAULT_LOCALE
+) => ({
   "@context": "https://schema.org",
   "@type": "WebSite",
   name: settings.store_name,
-  url: SITE_URL,
-  inLanguage: "he",
+  url: `${SITE_URL}${localePath(locale, "/") === "/" ? "" : localePath(locale, "/")}`,
+  inLanguage: locale,
   potentialAction: {
     "@type": "SearchAction",
-    target: `${SITE_URL}/products?q={search_term_string}`,
+    target: `${SITE_URL}${localePath(locale, "/products")}?q={search_term_string}`,
     "query-input": "required name=search_term_string",
   },
 })

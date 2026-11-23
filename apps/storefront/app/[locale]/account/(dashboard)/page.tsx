@@ -1,15 +1,19 @@
 import type { Metadata } from "next"
-import Link from "next/link"
+import { Link } from "@/components/ui/link"
 import { OrdersList } from "@/components/account/orders-table"
-import { t } from "@/lib/i18n"
+import { getT, withLocale } from "@/lib/i18n/server"
 import { listOrders } from "@/lib/medusa/customer-data"
 
-export const metadata: Metadata = {
-  title: t.account.title,
-  robots: { index: false, follow: false },
-}
+export const generateMetadata = withLocale((): Metadata => {
+  const t = getT()
+  return {
+    title: t.account.title,
+    robots: { index: false, follow: false },
+  }
+})
 
-export default async function AccountPage() {
+export default withLocale(async function AccountPage() {
+  const t = getT()
   const { orders, count } = await listOrders(5)
   return (
     <section aria-labelledby="recent-orders">
@@ -18,7 +22,10 @@ export default async function AccountPage() {
           {t.account.recentOrders}
         </h1>
         {count > orders.length && (
-          <Link href="/account/orders" className="text-sm text-mist-300 underline underline-offset-4 hover:text-paper">
+          <Link
+            href="/account/orders"
+            className="text-sm text-mist-300 underline underline-offset-4 hover:text-paper"
+          >
             {t.account.allOrders}
           </Link>
         )}
@@ -26,4 +33,4 @@ export default async function AccountPage() {
       <OrdersList orders={orders} />
     </section>
   )
-}
+})

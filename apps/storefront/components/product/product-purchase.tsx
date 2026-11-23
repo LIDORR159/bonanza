@@ -1,14 +1,14 @@
 "use client"
 
 import clsx from "clsx"
-import Link from "next/link"
+import { Link } from "@/components/ui/link"
 import { useId, useMemo, useState, useTransition } from "react"
 import { useCart } from "@/components/cart/cart-context"
 import { Button, buttonClass } from "@/components/ui/button"
 import { CheckIcon } from "@/components/ui/icons"
 import { Price } from "@/components/ui/price"
 import { QuantityInput } from "@/components/ui/quantity-input"
-import { t } from "@/lib/i18n"
+import { useT } from "@/components/i18n/locale-provider"
 import { addToCart } from "@/lib/medusa/cart"
 import type { StockState } from "@/lib/product"
 
@@ -38,15 +38,22 @@ export function ProductPurchase({
   options: PurchaseOption[]
   variants: PurchaseVariant[]
 }) {
+  const t = useT()
   const { setCount } = useCart()
   const groupId = useId()
   const [pending, startTransition] = useTransition()
   const [quantity, setQuantity] = useState(1)
-  const [feedback, setFeedback] = useState<{ tone: "success" | "error"; text: string } | null>(null)
+  const [feedback, setFeedback] = useState<{
+    tone: "success" | "error"
+    text: string
+  } | null>(null)
 
   // Start on the first variant that can be bought.
-  const initial = variants.find((variant) => variant.stock !== "out_of_stock") ?? variants[0]
-  const [selection, setSelection] = useState<Record<string, string>>(initial?.options ?? {})
+  const initial =
+    variants.find((variant) => variant.stock !== "out_of_stock") ?? variants[0]
+  const [selection, setSelection] = useState<Record<string, string>>(
+    initial?.options ?? {}
+  )
 
   const variant = useMemo(
     () =>
@@ -77,7 +84,10 @@ export function ProductPurchase({
     }
     setFeedback(null)
     startTransition(async () => {
-      const result = await addToCart({ variantId: variant.id, quantity: Math.min(quantity, max) })
+      const result = await addToCart({
+        variantId: variant.id,
+        quantity: Math.min(quantity, max),
+      })
       if (result.ok) {
         setCount(result.count)
         setFeedback({ tone: "success", text: t.product.added })
@@ -90,7 +100,11 @@ export function ProductPurchase({
   return (
     <div>
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <Price amount={variant?.price?.amount} original={variant?.price?.original} size="lg" />
+        <Price
+          amount={variant?.price?.amount}
+          original={variant?.price?.original}
+          size="lg"
+        />
         {variant?.price?.onSale && (
           <span className="rounded-sm bg-paper px-2 py-1 text-xs font-bold leading-none text-ink-950">
             {t.product.sale}
@@ -122,7 +136,9 @@ export function ProductPurchase({
                     checked
                       ? "border-paper bg-paper text-ink-950"
                       : "border-ink-500 text-mist-200 hover:border-mist-300",
-                    !inStock && !checked && "text-mist-400 line-through decoration-mist-400/60"
+                    !inStock &&
+                      !checked &&
+                      "text-mist-400 line-through decoration-mist-400/60"
                   )}
                 >
                   <input
@@ -179,7 +195,11 @@ export function ProductPurchase({
           disabled={!canBuy || pending}
           onClick={submit}
         >
-          {pending ? t.product.adding : canBuy ? t.product.addToCart : t.product.outOfStock}
+          {pending
+            ? t.product.adding
+            : canBuy
+              ? t.product.addToCart
+              : t.product.outOfStock}
         </Button>
       </div>
 
@@ -196,7 +216,10 @@ export function ProductPurchase({
           </div>
         )}
         {feedback?.tone === "error" && (
-          <p role="alert" className="rounded-md border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+          <p
+            role="alert"
+            className="rounded-md border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger"
+          >
             {feedback.text}
           </p>
         )}

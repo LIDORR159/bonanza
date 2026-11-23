@@ -1,13 +1,20 @@
 import { redirect } from "next/navigation"
 import type { ReactNode } from "react"
 import { retrieveCustomer } from "@/lib/medusa/customer-data"
+import { href, withLocale } from "@/lib/i18n/server"
 
 export const dynamic = "force-dynamic"
 
 /** Sign-in pages. A customer who is already signed in goes to their account. */
-export default async function AuthLayout({ children }: { children: ReactNode }) {
+export default withLocale(async function AuthLayout({
+  children,
+}: {
+  children: ReactNode
+}) {
   if (await retrieveCustomer()) {
-    redirect("/account")
+    redirect(href("/account"))
   }
-  return <div className="container-site flex justify-center py-14 lg:py-20">{children}</div>
-}
+  return (
+    <div className="container-site flex justify-center py-14 lg:py-20">{children}</div>
+  )
+})

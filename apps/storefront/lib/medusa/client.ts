@@ -1,7 +1,14 @@
 import "server-only"
 import Medusa from "@medusajs/js-sdk"
 import type { CacheTag } from "../cache-tags"
-import { BACKEND_URL, PUBLISHABLE_KEY, REVALIDATE_SECONDS } from "../config"
+import {
+  BACKEND_URL,
+  DEFAULT_LOCALE,
+  LOCALE_SETTINGS,
+  PUBLISHABLE_KEY,
+  REVALIDATE_SECONDS,
+} from "../config"
+import { getLocale } from "../i18n/server"
 
 /**
  * The Medusa JS SDK, used on the server only. The browser never talks to the
@@ -20,18 +27,39 @@ export const sdk = new Medusa({
 type Query = Record<string, unknown>
 
 /**
+ * What a request adds to be answered in the language of the page being
+ * rendered. Hebrew is what the backend stores, so it asks for nothing. The
+ * language is part of the query, which also keeps each language's cached
+ * response apart.
+ */
+export function localeRequest(): { query: Query; headers: Record<string, string> } {
+  const locale = getLocale()
+  if (locale === DEFAULT_LOCALE) {
+    return { query: {}, headers: {} }
+  }
+  const code = LOCALE_SETTINGS[locale].medusa
+  return { query: { locale: code }, headers: { "x-medusa-locale": code } }
+}
+
+/**
  * Reads public catalog or content data. The response is cached, tagged and
  * refreshed in the background, so pages built from it can be served from the
  * CDN. Never use it for anything tied to a visitor.
  */
 export async function cachedFetch<T>(
   path: string,
-  options: { query?: Query; tags: CacheTag[]; revalidate?: number; headers?: Record<string, string> }
+  options: {
+    query?: Query
+    tags: CacheTag[]
+    revalidate?: number
+    headers?: Record<string, string>
+  }
 ): Promise<T> {
+  const language = localeRequest()
   return sdk.client.fetch<T>(path, {
     method: "GET",
-    query: options.query,
-    headers: options.headers,
+    query: { ...options.query, ...language.query },
+    headers: { ...language.headers, ...options.headers },
     next: { tags: options.tags, revalidate: options.revalidate ?? REVALIDATE_SECONDS },
   })
 }

@@ -89,7 +89,10 @@ test.describe.serial("customer account", () => {
     await expect(page.getByLabel("רחוב ומספר בית")).toHaveValue("דיזנגוף 99")
     await expect(page.getByLabel("טלפון נייד")).toHaveValue("052-7654321")
     await page.getByRole("button", { name: "המשך לבחירת משלוח" }).click()
-    await page.getByRole("group", { name: "שיטת משלוח" }).getByText("איסוף עצמי מהחנות").click()
+    await page
+      .getByRole("group", { name: "שיטת משלוח" })
+      .getByText("איסוף עצמי מהחנות")
+      .click()
     await page.getByRole("button", { name: "המשך לתשלום" }).click()
     await page.getByRole("button", { name: "מעבר לתשלום מאובטח" }).click()
     await page.waitForURL(/\/dev-gateway\/pay\//)
@@ -127,7 +130,9 @@ test.describe.serial("customer account", () => {
 
     // The link arrives by email, in Hebrew, pointing at the storefront.
     const html = await waitForEmail(request, email, "איפוס סיסמה")
-    const link = html.match(/href="([^"]*\/account\/reset-password\?[^"]+)"/)![1].replace(/&amp;/g, "&")
+    const link = html
+      .match(/href="([^"]*\/account\/reset-password\?[^"]+)"/)![1]
+      .replace(/&amp;/g, "&")
     await page.goto(link)
 
     await page.getByLabel("סיסמה חדשה").fill(newPassword)
@@ -150,7 +155,9 @@ test.describe.serial("customer account", () => {
     await expect(page.getByText("שלום, נועה")).toBeVisible()
   })
 
-  test("the reset form gives the same answer for an unknown address", async ({ page }) => {
+  test("the reset form gives the same answer for an unknown address", async ({
+    page,
+  }) => {
     await page.goto("/account/forgot-password")
     await page.getByLabel("אימייל").fill(uniqueEmail("nobody"))
     await page.getByRole("button", { name: "שליחת קישור לאיפוס" }).click()

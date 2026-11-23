@@ -1,9 +1,9 @@
 "use client"
 
-import Link from "next/link"
+import { Link } from "@/components/ui/link"
 import { Button, ButtonLink } from "@/components/ui/button"
 import { Field, FormMessage } from "@/components/ui/field"
-import { t } from "@/lib/i18n"
+import { useT } from "@/components/i18n/locale-provider"
 import {
   login,
   register,
@@ -17,11 +17,19 @@ const idle: FormState = { status: "idle" }
 const linkClass = "font-semibold text-paper underline underline-offset-4"
 
 export function LoginForm({ next }: { next: string }) {
+  const t = useT()
   const { state, action, onSubmit, pending } = useFormAction(login, idle)
   return (
     <form action={action} onSubmit={onSubmit} className="space-y-4" noValidate>
       <input type="hidden" name="next" value={next} />
-      <Field label={t.account.email} name="email" type="email" ltr required autoComplete="email" />
+      <Field
+        label={t.account.email}
+        name="email"
+        type="email"
+        ltr
+        required
+        autoComplete="email"
+      />
       <Field
         label={t.account.password}
         name="password"
@@ -30,17 +38,25 @@ export function LoginForm({ next }: { next: string }) {
         required
         autoComplete="current-password"
       />
-      {state.status === "error" && <FormMessage tone="error">{state.message}</FormMessage>}
+      {state.status === "error" && (
+        <FormMessage tone="error">{state.message}</FormMessage>
+      )}
       <Button type="submit" size="lg" disabled={pending} className="w-full">
         {pending ? t.account.signingIn : t.account.signIn}
       </Button>
       <p className="flex flex-wrap justify-between gap-2 pt-2 text-sm text-mist-300">
-        <Link href="/account/forgot-password" className="underline underline-offset-4 hover:text-paper">
+        <Link
+          href="/account/forgot-password"
+          className="underline underline-offset-4 hover:text-paper"
+        >
           {t.account.forgotPassword}
         </Link>
         <span>
           {t.account.noAccount}{" "}
-          <Link href={`/account/register?next=${encodeURIComponent(next)}`} className={linkClass}>
+          <Link
+            href={`/account/register?next=${encodeURIComponent(next)}`}
+            className={linkClass}
+          >
             {t.account.register}
           </Link>
         </span>
@@ -50,6 +66,7 @@ export function LoginForm({ next }: { next: string }) {
 }
 
 export function RegisterForm({ next }: { next: string }) {
+  const t = useT()
   const { state, action, onSubmit, pending } = useFormAction(register, idle)
   const errors = state.fieldErrors ?? {}
   return (
@@ -108,7 +125,10 @@ export function RegisterForm({ next }: { next: string }) {
       </Button>
       <p className="pt-2 text-sm text-mist-300">
         {t.account.haveAccount}{" "}
-        <Link href={`/account/login?next=${encodeURIComponent(next)}`} className={linkClass}>
+        <Link
+          href={`/account/login?next=${encodeURIComponent(next)}`}
+          className={linkClass}
+        >
           {t.account.signIn}
         </Link>
       </p>
@@ -117,6 +137,7 @@ export function RegisterForm({ next }: { next: string }) {
 }
 
 export function ForgotPasswordForm() {
+  const t = useT()
   const { state, action, onSubmit, pending } = useFormAction(requestPasswordReset, idle)
   if (state.status === "success") {
     return <FormMessage tone="success">{state.message}</FormMessage>
@@ -144,6 +165,7 @@ export function ForgotPasswordForm() {
 }
 
 export function ResetPasswordForm({ token, email }: { token: string; email: string }) {
+  const t = useT()
   const { state, action, onSubmit, pending } = useFormAction(resetPassword, idle)
   const errors = state.fieldErrors ?? {}
   if (state.status === "success") {

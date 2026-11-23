@@ -28,23 +28,37 @@ const CartContext = createContext<CartState>({
  * arrives, which keeps cookies out of page rendering: catalog pages stay
  * identical for every visitor and can be cached.
  */
+async function fetchCount(): Promise<number | null> {
+  try {
+    const response = await fetch("/api/cart", { cache: "no-store" })
+    return response.ok ? ((await response.json()) as { count: number }).count : null
+  } catch {
+    // The badge is a convenience; the cart page is the source of truth.
+    return null
+  }
+}
+
 export function CartProvider({ children }: { children: ReactNode }) {
   const [count, setCount] = useState<number | null>(null)
 
   const refresh = useCallback(async () => {
-    try {
-      const response = await fetch("/api/cart", { cache: "no-store" })
-      if (response.ok) {
-        setCount(((await response.json()) as { count: number }).count)
-      }
-    } catch {
-      // The badge is a convenience; the cart page is the source of truth.
+    const next = await fetchCount()
+    if (next != null) {
+      setCount(next)
     }
   }, [])
 
   useEffect(() => {
-    void refresh()
-  }, [refresh])
+    let active = true
+    void fetchCount().then((next) => {
+      if (active && next != null) {
+        setCount(next)
+      }
+    })
+    return () => {
+      active = false
+    }
+  }, [])
 
   const value = useMemo(() => ({ count, setCount, refresh }), [count, refresh])
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>

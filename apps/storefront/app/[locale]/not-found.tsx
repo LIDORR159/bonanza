@@ -1,7 +1,12 @@
-import { ButtonLink } from "@/components/ui/button"
-import { t } from "@/lib/i18n"
+"use client"
 
+import { useT } from "@/components/i18n/locale-provider"
+import { ButtonLink } from "@/components/ui/button"
+
+// A client component on purpose: a "not found" page is given no address
+// parameters, and the language context is the one source that is always set.
 export default function NotFound() {
+  const t = useT()
   return (
     <div className="container-site flex min-h-[55vh] flex-col items-center justify-center py-20 text-center">
       <p className="eyebrow mb-4" dir="ltr">

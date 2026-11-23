@@ -1,6 +1,6 @@
 import Image from "next/image"
-import Link from "next/link"
-import { t } from "@/lib/i18n"
+import { Link } from "@/components/ui/link"
+import { getT } from "@/lib/i18n/server"
 
 /**
  * The BONANZA lockup, straight from the supplied logo file: the wordmark with
@@ -20,6 +20,7 @@ export function Logo({
   priority?: boolean
   linked?: boolean
 }) {
+  const t = getT()
   const image = (
     <Image
       src="/brand/bonanza-lockup-720.webp"
@@ -35,7 +36,11 @@ export function Logo({
     return image
   }
   return (
-    <Link href="/" aria-label={`${t.brand.name}, ${t.common.home}`} className="block shrink-0">
+    <Link
+      href="/"
+      aria-label={`${t.brand.name}, ${t.common.home}`}
+      className="block shrink-0"
+    >
       {image}
     </Link>
   )

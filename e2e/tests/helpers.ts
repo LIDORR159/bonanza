@@ -114,7 +114,10 @@ export async function waitForEmail(
         const list = await request.get(
           `${MAILPIT_URL}/api/v1/search?query=${encodeURIComponent(`to:${to}`)}`
         )
-        const messages = ((await list.json()).messages ?? []) as { ID: string; Subject: string }[]
+        const messages = ((await list.json()).messages ?? []) as {
+          ID: string
+          Subject: string
+        }[]
         const match = messages.find((message) => message.Subject.includes(subjectPart))
         if (!match) {
           return false

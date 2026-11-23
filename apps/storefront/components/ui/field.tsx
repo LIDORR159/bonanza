@@ -1,6 +1,8 @@
+"use client"
+
 import clsx from "clsx"
 import type { ComponentProps, ReactNode } from "react"
-import { t } from "@/lib/i18n"
+import { useT } from "@/components/i18n/locale-provider"
 
 export const inputClass =
   "block h-12 w-full rounded-md border border-ink-500 bg-ink-900 px-3.5 text-base text-paper " +
@@ -17,14 +19,31 @@ type FieldProps = Omit<ComponentProps<"input">, "id"> & {
 }
 
 /** A labelled text input with its hint and error wired up for screen readers. */
-export function Field({ label, name, hint, error, ltr, required, className, ...props }: FieldProps) {
+export function Field({
+  label,
+  name,
+  hint,
+  error,
+  ltr,
+  required,
+  className,
+  ...props
+}: FieldProps) {
+  const t = useT()
   const id = `field-${name.replace(/[^a-z0-9]+/gi, "-")}`
-  const describedBy = [hint && `${id}-hint`, error && `${id}-error`].filter(Boolean).join(" ")
+  const describedBy = [hint && `${id}-hint`, error && `${id}-error`]
+    .filter(Boolean)
+    .join(" ")
   return (
     <div className={className}>
-      <label htmlFor={id} className="mb-1.5 flex items-baseline gap-1.5 text-sm font-medium text-mist-200">
+      <label
+        htmlFor={id}
+        className="mb-1.5 flex items-baseline gap-1.5 text-sm font-medium text-mist-200"
+      >
         {label}
-        {!required && <span className="text-xs font-normal text-mist-400">({t.common.optional})</span>}
+        {!required && (
+          <span className="text-xs font-normal text-mist-400">({t.common.optional})</span>
+        )}
       </label>
       <input
         id={id}

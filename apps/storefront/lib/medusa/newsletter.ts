@@ -1,7 +1,7 @@
 "use server"
 
 import { isEmail } from "../format"
-import { t } from "../i18n"
+import { actionT } from "../i18n/action"
 import { privateFetch } from "./client"
 
 export type NewsletterState = { status: "idle" | "success" | "error"; message?: string }
@@ -10,6 +10,7 @@ export async function subscribeToNewsletter(
   _previous: NewsletterState,
   formData: FormData
 ): Promise<NewsletterState> {
+  const t = await actionT()
   const email = String(formData.get("email") ?? "").trim()
   if (!isEmail(email)) {
     return { status: "error", message: t.checkout.errors.email }

@@ -1,18 +1,22 @@
 import type { Metadata } from "next"
 import { redirect } from "next/navigation"
 import { ProfileForm } from "@/components/account/account-forms"
-import { t } from "@/lib/i18n"
+import { getT, href, withLocale } from "@/lib/i18n/server"
 import { retrieveCustomer } from "@/lib/medusa/customer-data"
 
-export const metadata: Metadata = {
-  title: t.account.profile,
-  robots: { index: false, follow: false },
-}
+export const generateMetadata = withLocale((): Metadata => {
+  const t = getT()
+  return {
+    title: t.account.profile,
+    robots: { index: false, follow: false },
+  }
+})
 
-export default async function ProfilePage() {
+export default withLocale(async function ProfilePage() {
+  const t = getT()
   const customer = await retrieveCustomer()
   if (!customer) {
-    redirect("/account/login")
+    redirect(href("/account/login"))
   }
   return (
     <section>
@@ -25,4 +29,4 @@ export default async function ProfilePage() {
       />
     </section>
   )
-}
+})

@@ -1,11 +1,12 @@
-import Link from "next/link"
+import { Link } from "@/components/ui/link"
 import { breadcrumbJsonLd, JsonLd } from "@/components/seo/json-ld"
-import { t } from "@/lib/i18n"
+import { getT } from "@/lib/i18n/server"
 
 export type Crumb = { name: string; path: string }
 
 /** The trail above a page title. The last item is the current page. */
 export function Breadcrumbs({ items }: { items: Crumb[] }) {
+  const t = getT()
   const trail = [{ name: t.common.home, path: "/" }, ...items]
   return (
     <>

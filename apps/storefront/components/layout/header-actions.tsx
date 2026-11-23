@@ -1,11 +1,11 @@
 "use client"
 
-import Link from "next/link"
+import { Link } from "@/components/ui/link"
 import { useRouter } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
 import { useCart } from "@/components/cart/cart-context"
 import { CartIcon, CloseIcon, SearchIcon, UserIcon } from "@/components/ui/icons"
-import { t } from "@/lib/i18n"
+import { useLocalePath, useT } from "@/components/i18n/locale-provider"
 
 const iconButton =
   "relative inline-flex size-11 items-center justify-center rounded-md text-mist-200 " +
@@ -13,8 +13,10 @@ const iconButton =
 
 /** Search, account and cart, at the end of the header. */
 export function HeaderActions() {
+  const t = useT()
   const { count } = useCart()
   const router = useRouter()
+  const localize = useLocalePath()
   const [searchOpen, setSearchOpen] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -33,7 +35,8 @@ export function HeaderActions() {
       <div className="flex items-center gap-0.5">
         <button
           type="button"
-          className={iconButton}
+          // On phones the search field lives in the menu.
+          className={`${iconButton} max-sm:hidden`}
           aria-label={t.nav.search}
           aria-expanded={searchOpen}
           aria-controls="site-search"
@@ -41,7 +44,11 @@ export function HeaderActions() {
         >
           {searchOpen ? <CloseIcon /> : <SearchIcon />}
         </button>
-        <Link href="/account" className={`${iconButton} max-sm:hidden`} aria-label={t.nav.account}>
+        <Link
+          href="/account"
+          className={`${iconButton} max-sm:hidden`}
+          aria-label={t.nav.account}
+        >
           <UserIcon />
         </Link>
         <Link
@@ -73,7 +80,9 @@ export function HeaderActions() {
               event.preventDefault()
               const query = inputRef.current?.value.trim()
               setSearchOpen(false)
-              router.push(query ? `/products?q=${encodeURIComponent(query)}` : "/products")
+              router.push(
+                localize(query ? `/products?q=${encodeURIComponent(query)}` : "/products")
+              )
             }}
           >
             <SearchIcon className="shrink-0 text-mist-400" />

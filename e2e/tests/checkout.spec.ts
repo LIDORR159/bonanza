@@ -48,7 +48,9 @@ test.describe("cart", () => {
 })
 
 test.describe("checkout", () => {
-  test("address validation rejects a bad phone number and postal code", async ({ page }) => {
+  test("address validation rejects a bad phone number and postal code", async ({
+    page,
+  }) => {
     await addToCart(page, PRODUCT)
     await page.goto("/checkout")
     await page.getByLabel("אימייל").fill("not-an-email")
@@ -127,7 +129,10 @@ test.describe("checkout", () => {
     expect(html).toContain("₪739")
   })
 
-  test("a declined payment creates no order and keeps the cart", async ({ page, request }) => {
+  test("a declined payment creates no order and keeps the cart", async ({
+    page,
+    request,
+  }) => {
     const email = uniqueEmail("declined")
     await addToCart(page, PRODUCT)
     await checkoutToPaymentPage(page, email)
@@ -139,11 +144,18 @@ test.describe("checkout", () => {
     await page.goto("/cart")
     await expect(page.getByRole("region", { name: "סיכום הזמנה" })).toContainText("₪69")
 
-    const response = await adminApi(request, "get", `/admin/orders?q=${encodeURIComponent(email)}`)
+    const response = await adminApi(
+      request,
+      "get",
+      `/admin/orders?q=${encodeURIComponent(email)}`
+    )
     expect((await response.json()).orders).toHaveLength(0)
   })
 
-  test("a canceled payment creates no order and keeps the cart", async ({ page, request }) => {
+  test("a canceled payment creates no order and keeps the cart", async ({
+    page,
+    request,
+  }) => {
     const email = uniqueEmail("canceled")
     await addToCart(page, PRODUCT)
     await checkoutToPaymentPage(page, email)
@@ -152,7 +164,11 @@ test.describe("checkout", () => {
     await page.waitForURL(/\/checkout\/return/)
     await expect(page.getByRole("heading", { name: "התשלום בוטל" })).toBeVisible()
 
-    const response = await adminApi(request, "get", `/admin/orders?q=${encodeURIComponent(email)}`)
+    const response = await adminApi(
+      request,
+      "get",
+      `/admin/orders?q=${encodeURIComponent(email)}`
+    )
     expect((await response.json()).orders).toHaveLength(0)
   })
 
@@ -166,11 +182,17 @@ test.describe("checkout", () => {
 
     // Skip the payment page and go straight to the "success" address.
     await page.goto("/checkout/return?outcome=approved&charge=dgch_made_up")
-    await expect(page.getByRole("heading", { name: "עדיין לא קיבלנו אישור תשלום" })).toBeVisible({
+    await expect(
+      page.getByRole("heading", { name: "עדיין לא קיבלנו אישור תשלום" })
+    ).toBeVisible({
       timeout: 40_000,
     })
 
-    const response = await adminApi(request, "get", `/admin/orders?q=${encodeURIComponent(email)}`)
+    const response = await adminApi(
+      request,
+      "get",
+      `/admin/orders?q=${encodeURIComponent(email)}`
+    )
     expect((await response.json()).orders).toHaveLength(0)
   })
 })

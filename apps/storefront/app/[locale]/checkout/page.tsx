@@ -1,29 +1,37 @@
 import type { Metadata } from "next"
-import Link from "next/link"
+import { Link } from "@/components/ui/link"
 import { redirect } from "next/navigation"
 import { AddressBlock, CheckoutSummary } from "@/components/checkout/checkout-review"
-import { DetailsForm, PaymentForm, ShippingForm } from "@/components/checkout/checkout-forms"
+import {
+  DetailsForm,
+  PaymentForm,
+  ShippingForm,
+} from "@/components/checkout/checkout-forms"
 import {
   CHECKOUT_STEPS,
   CheckoutSteps,
   type CheckoutStep,
 } from "@/components/checkout/checkout-steps"
 import { summaryTotals, toCartLine } from "@/lib/cart-view"
-import { t } from "@/lib/i18n"
+import { getT, href, withLocale } from "@/lib/i18n/server"
 import { retrieveCart } from "@/lib/medusa/cart-data"
 import { listPaymentProviders, listShippingOptions } from "@/lib/medusa/checkout"
 import { retrieveCustomer } from "@/lib/medusa/customer-data"
 
 export const dynamic = "force-dynamic"
 
-export const metadata: Metadata = {
-  title: t.checkout.title,
-  robots: { index: false, follow: false },
-}
+export const generateMetadata = withLocale((): Metadata => {
+  const t = getT()
+  return {
+    title: t.checkout.title,
+    robots: { index: false, follow: false },
+  }
+})
 
 type Props = { searchParams: Promise<{ step?: string }> }
 
-export default async function CheckoutPage({ searchParams }: Props) {
+export default withLocale(async function CheckoutPage({ searchParams }: Props) {
+  const t = getT()
   const [{ step: requested }, cart, customer] = await Promise.all([
     searchParams,
     retrieveCart(),
@@ -31,13 +39,17 @@ export default async function CheckoutPage({ searchParams }: Props) {
   ])
 
   if (!cart || !cart.items?.length) {
-    redirect("/cart")
+    redirect(href("/cart"))
   }
 
   // A step can only be opened once the ones before it are complete.
   const hasDetails = !!cart.email && !!cart.shipping_address?.address_1
   const hasShipping = (cart.shipping_methods?.length ?? 0) > 0
-  const furthest: CheckoutStep = !hasDetails ? "details" : !hasShipping ? "shipping" : "payment"
+  const furthest: CheckoutStep = !hasDetails
+    ? "details"
+    : !hasShipping
+      ? "shipping"
+      : "payment"
   const wanted = (CHECKOUT_STEPS as readonly string[]).includes(requested ?? "")
     ? (requested as CheckoutStep)
     : furthest
@@ -119,7 +131,9 @@ export default async function CheckoutPage({ searchParams }: Props) {
                     {t.checkout.change}
                   </Link>
                 </div>
-                <p className="text-[0.95rem] text-mist-200">{cart.shipping_methods?.[0]?.name}</p>
+                <p className="text-[0.95rem] text-mist-200">
+                  {cart.shipping_methods?.[0]?.name}
+                </p>
               </section>
               <PaymentStep regionId={cart.region_id ?? ""} />
             </>
@@ -132,7 +146,7 @@ export default async function CheckoutPage({ searchParams }: Props) {
       </div>
     </div>
   )
-}
+})
 
 async function PaymentStep({ regionId }: { regionId: string }) {
   const providers = await listPaymentProviders(regionId)

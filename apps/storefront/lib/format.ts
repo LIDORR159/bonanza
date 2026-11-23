@@ -20,13 +20,15 @@ export function formatPrice(amount: number | null | undefined): string {
   return `${sign}₪${numberFormatter.format(Math.abs(amount))}`
 }
 
-const dateFormatter = new Intl.DateTimeFormat("he-IL", { dateStyle: "long" })
-
-export function formatDate(value: string | Date | null | undefined): string {
+/** `intl` is the language's `Intl` code, from `LOCALE_SETTINGS`. */
+export function formatDate(
+  value: string | Date | null | undefined,
+  intl = "he-IL"
+): string {
   if (!value) {
     return ""
   }
-  return dateFormatter.format(new Date(value))
+  return new Intl.DateTimeFormat(intl, { dateStyle: "long" }).format(new Date(value))
 }
 
 /** Percentage saved, rounded: 549 → 469 is 15. */
@@ -74,7 +76,8 @@ export function formatIsraeliPhone(value: string | null | undefined): string {
 }
 
 /** Israeli postal codes are seven digits. */
-export const isIsraeliPostalCode = (value: string): boolean => /^\d{7}$/.test(value.trim())
+export const isIsraeliPostalCode = (value: string): boolean =>
+  /^\d{7}$/.test(value.trim())
 
 export const isEmail = (value: string): boolean =>
   /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value.trim())

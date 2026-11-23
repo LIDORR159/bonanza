@@ -27,7 +27,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 })
   }
 
-  const body = (await request.json().catch(() => ({}))) as { tags?: unknown; all?: unknown }
+  const body = (await request.json().catch(() => ({}))) as {
+    tags?: unknown
+    all?: unknown
+  }
 
   if (body.all === true) {
     revalidatePath("/", "layout")

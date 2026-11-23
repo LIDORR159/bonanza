@@ -1,7 +1,7 @@
 "use client"
 
 import { MinusIcon, PlusIcon } from "./icons"
-import { t } from "@/lib/i18n"
+import { useT } from "@/components/i18n/locale-provider"
 
 const stepButton =
   "inline-flex size-11 items-center justify-center text-mist-200 transition hover:bg-white/5 " +
@@ -25,6 +25,7 @@ export function QuantityInput({
   disabled?: boolean
   id?: string
 }) {
+  const t = useT()
   const clamp = (next: number) => Math.min(Math.max(Math.round(next) || min, min), max)
   return (
     <div

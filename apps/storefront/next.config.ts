@@ -21,6 +21,9 @@ const nextConfig: NextConfig = {
   // Cloudflare Workers build (pnpm cf:build) wraps the same Next.js build.
   output: "standalone",
   poweredByHeader: false,
+  // The development badge sits bottom-left by default, on top of the site's
+  // own floating buttons, which use both bottom corners.
+  devIndicators: { position: "top-right" },
   reactStrictMode: true,
   // The shared types package is TypeScript source, not a compiled package.
   transpilePackages: ["@bonanza/types"],
@@ -51,11 +54,12 @@ const nextConfig: NextConfig = {
     return {
       beforeFiles: [],
       // Hebrew is the default language and has no URL prefix: `/products` is
-      // served by `app/[locale]/products` with locale `he`. A second language
-      // gets a prefix (`/en/products`) and needs no further routing changes.
+      // served by `app/[locale]/products` with locale `he`. English and Arabic
+      // carry theirs (`/en/products`, `/ar/products`) and match directly.
       afterFiles: [
         {
-          source: "/:path((?!he(?:/|$)|api/|_next/|brand/|favicon|robots|sitemap|manifest).*)",
+          source:
+            "/:path((?!(?:he|en|ar)(?:/|$)|api/|_next/|brand/|home/|favicon|robots|sitemap|manifest).*)",
           destination: "/he/:path",
         },
       ],

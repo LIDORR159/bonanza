@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useCart } from "@/components/cart/cart-context"
 import { Button, ButtonLink } from "@/components/ui/button"
-import { t } from "@/lib/i18n"
+import { useLocalePath, useT } from "@/components/i18n/locale-provider"
 import { checkPayment } from "@/lib/medusa/checkout"
 
 type Outcome = "approved" | "declined" | "canceled" | "unknown"
@@ -22,7 +22,9 @@ const INTERVAL_MS = 2000
  * shopper does.
  */
 export function PaymentResult({ outcome }: { outcome: Outcome }) {
+  const t = useT()
   const router = useRouter()
+  const localize = useLocalePath()
   const { refresh } = useCart()
   const [state, setState] = useState<"checking" | "pending" | Outcome>(
     outcome === "declined" || outcome === "canceled" ? outcome : "checking"
@@ -35,17 +37,17 @@ export function PaymentResult({ outcome }: { outcome: Outcome }) {
       const result = await checkPayment()
       if (result.status === "paid") {
         await refresh()
-        router.replace(`/order/${result.orderId}/confirmed`)
+        router.replace(localize(`/order/${result.orderId}/confirmed`))
         return
       }
       if (result.status === "no_cart") {
-        router.replace("/cart")
+        router.replace(localize("/cart"))
         return
       }
       await new Promise((resolve) => setTimeout(resolve, INTERVAL_MS))
     }
     setState("pending")
-  }, [refresh, router])
+  }, [refresh, router, localize])
 
   useEffect(() => {
     if (state === "checking" && !started.current) {

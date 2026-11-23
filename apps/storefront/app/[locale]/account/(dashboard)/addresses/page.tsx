@@ -2,19 +2,23 @@ import type { Metadata } from "next"
 import { redirect } from "next/navigation"
 import { AddressForm } from "@/components/account/account-forms"
 import { AddressBlock } from "@/components/checkout/checkout-review"
-import { t } from "@/lib/i18n"
+import { getT, href, withLocale } from "@/lib/i18n/server"
 import { deleteAddress } from "@/lib/medusa/customer"
 import { retrieveCustomer } from "@/lib/medusa/customer-data"
 
-export const metadata: Metadata = {
-  title: t.account.addresses,
-  robots: { index: false, follow: false },
-}
+export const generateMetadata = withLocale((): Metadata => {
+  const t = getT()
+  return {
+    title: t.account.addresses,
+    robots: { index: false, follow: false },
+  }
+})
 
-export default async function AddressesPage() {
+export default withLocale(async function AddressesPage() {
+  const t = getT()
   const customer = await retrieveCustomer()
   if (!customer) {
-    redirect("/account/login")
+    redirect(href("/account/login"))
   }
   const addresses = customer.addresses ?? []
   return (
@@ -24,7 +28,10 @@ export default async function AddressesPage() {
         {addresses.length ? (
           <ul className="grid gap-4 sm:grid-cols-2">
             {addresses.map((address) => (
-              <li key={address.id} className="rounded-lg border border-ink-600 bg-ink-850 p-5">
+              <li
+                key={address.id}
+                className="rounded-lg border border-ink-600 bg-ink-850 p-5"
+              >
                 {address.is_default_shipping && (
                   <p className="mb-2 inline-block rounded-sm bg-paper px-2 py-0.5 text-xs font-bold text-ink-950">
                     {t.account.defaultShipping}
@@ -45,7 +52,10 @@ export default async function AddressesPage() {
                 </details>
                 <form action={deleteAddress} className="mt-3">
                   <input type="hidden" name="address_id" value={address.id} />
-                  <button type="submit" className="text-sm text-danger underline underline-offset-4">
+                  <button
+                    type="submit"
+                    className="text-sm text-danger underline underline-offset-4"
+                  >
                     {t.account.deleteAddress}
                   </button>
                 </form>
@@ -62,4 +72,4 @@ export default async function AddressesPage() {
       </div>
     </section>
   )
-}
+})

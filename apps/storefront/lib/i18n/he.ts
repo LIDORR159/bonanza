@@ -172,8 +172,10 @@ export const he = {
     noShippingOptions: "אין כרגע אפשרויות משלוח זמינות לכתובת הזו.",
     continueToPayment: "המשך לתשלום",
     paymentTitle: "תשלום",
-    paymentRedirect: "לאחר לחיצה על הכפתור תועברו לעמוד תשלום מאובטח. פרטי הכרטיס אינם עוברים דרך האתר שלנו.",
-    paymentUnavailable: "התשלום באתר עדיין אינו פעיל. אפשר ליצור איתנו קשר להשלמת ההזמנה.",
+    paymentRedirect:
+      "לאחר לחיצה על הכפתור תועברו לעמוד תשלום מאובטח. פרטי הכרטיס אינם עוברים דרך האתר שלנו.",
+    paymentUnavailable:
+      "התשלום באתר עדיין אינו פעיל. אפשר ליצור איתנו קשר להשלמת ההזמנה.",
     devPaymentNote: "סביבת בדיקות: התשלום מדומה ולא מתבצע חיוב.",
     placeOrder: "מעבר לתשלום מאובטח",
     processing: "מעביר לתשלום…",
@@ -312,6 +314,92 @@ export const he = {
     followUs: "עקבו אחרינו",
     rights: (year: number) => `© ${year} BONANZA. כל הזכויות שמורות.`,
     secureNote: "תשלום מאובטח",
+  },
+
+  booking: {
+    cta: "קביעת תור",
+    ctaOnline: "קביעת תור אונליין",
+    newTab: "נפתח בלשונית חדשה",
+  },
+
+  languages: {
+    label: "שפה",
+  },
+
+  info: {
+    hours: "שעות פעילות",
+    address: "כתובת",
+    phone: "טלפון",
+  },
+
+  about: {
+    fallbackTitle: "קצת עלינו",
+  },
+
+  pricing: {
+    title: "מחירון",
+    subtitle: "מחירים ברורים, בלי הפתעות.",
+    vatNote: "המחירים בשקלים וכוללים מע״מ.",
+    minutes: (count: number) => `${count} דק׳`,
+    empty: "המחירון יתעדכן בקרוב.",
+  },
+
+  gallery: {
+    title: "עבודות",
+    subtitle: "קצת ממה שיוצא מהכיסא שלנו.",
+    viewAll: "לכל העבודות",
+    empty: "תמונות יעלו בקרוב.",
+    imageAlt: "עבודה של BONANZA",
+    teamTitle: "הצוות",
+    teamSubtitle: "עוד עבודות מחכות באינסטגרם של כל ספר.",
+    instagram: "לאינסטגרם",
+    instagramOf: (name: string) => `האינסטגרם של ${name}`,
+    bookTitle: "ראיתם משהו שאהבתם?",
+    bookBody: "קובעים תור אונליין בכמה שניות.",
+    metaDescription: "גלריית העבודות של BONANZA: תספורות, דירוגים ועיצובי זקן.",
+  },
+
+  reviews: {
+    title: "מה אומרים עלינו",
+    google: "ביקורות Google",
+    ratingLabel: (rating: string) => `דירוג ${rating} מתוך 5`,
+    basedOn: (count: number) => `מבוסס על ${count} ביקורות`,
+    stars: (count: number) => `${count} מתוך 5 כוכבים`,
+    readAll: "לכל הביקורות בגוגל",
+  },
+
+  contact: {
+    title: "צור קשר",
+    whatsapp: "וואטסאפ",
+    whatsappCta: "צור קשר",
+    whatsappLabel: "צור קשר בוואטסאפ",
+    whatsappMessage: "היי, הגעתי מהאתר של BONANZA",
+    phone: "טלפון",
+    email: "אימייל",
+    instagram: "אינסטגרם",
+    hours: "שעות פעילות",
+    location: "איך מגיעים",
+    mapTitle: "מפת הגעה",
+    openInMaps: "פתיחה במפות",
+  },
+
+  a11y: {
+    open: "פתיחת תפריט נגישות",
+    title: "נגישות",
+    textSize: "גודל טקסט",
+    increaseText: "הגדלת טקסט",
+    decreaseText: "הקטנת טקסט",
+    highContrast: "ניגודיות גבוהה",
+    highlightLinks: "הדגשת קישורים",
+    stopMotion: "עצירת אנימציות",
+    reset: "איפוס הגדרות",
+    statement: "הצהרת נגישות",
+  },
+
+  product_specs: {
+    weight: "משקל",
+    kilograms: (value: string) => `${value} ק״ג`,
+    grams: (value: number) => `${value} גרם`,
   },
 
   errors: {

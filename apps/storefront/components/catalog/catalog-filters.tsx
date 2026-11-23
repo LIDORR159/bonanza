@@ -1,10 +1,14 @@
 import clsx from "clsx"
-import Link from "next/link"
+import { Link } from "@/components/ui/link"
 import { buttonClass } from "@/components/ui/button"
 import { inputClass } from "@/components/ui/field"
 import { FilterIcon } from "@/components/ui/icons"
-import { catalogHref, hasActiveFilters, type ParsedCatalogParams } from "@/lib/catalog-params"
-import { t } from "@/lib/i18n"
+import {
+  catalogHref,
+  hasActiveFilters,
+  type ParsedCatalogParams,
+} from "@/lib/catalog-params"
+import { getT } from "@/lib/i18n/server"
 import type { CatalogResult, SortOption } from "@/lib/medusa/catalog"
 
 type Props = {
@@ -31,6 +35,7 @@ export function CatalogFilters({
   hideBrand,
   categories,
 }: Props) {
+  const t = getT()
   const sortOptions: SortOption[] = params.q
     ? ["relevance", "newest", "price-asc", "price-desc", "title"]
     : ["newest", "price-asc", "price-desc", "title"]
@@ -42,7 +47,9 @@ export function CatalogFilters({
       {params.q && <input type="hidden" name="q" value={params.q} />}
 
       <fieldset>
-        <legend className="mb-2.5 text-sm font-semibold text-paper">{t.catalog.sort}</legend>
+        <legend className="mb-2.5 text-sm font-semibold text-paper">
+          {t.catalog.sort}
+        </legend>
         <label htmlFor={`${idPrefix}-catalog-sort`} className="sr-only">
           {t.catalog.sort}
         </label>
@@ -86,7 +93,9 @@ export function CatalogFilters({
 
       {!hideBrand && facets.brands.length > 0 && (
         <fieldset>
-          <legend className="mb-2.5 text-sm font-semibold text-paper">{t.catalog.brand}</legend>
+          <legend className="mb-2.5 text-sm font-semibold text-paper">
+            {t.catalog.brand}
+          </legend>
           <ul className="space-y-1.5 text-sm">
             {facets.brands.map((brand) => (
               <li key={brand.value}>
@@ -108,7 +117,9 @@ export function CatalogFilters({
       )}
 
       <fieldset>
-        <legend className="mb-2.5 text-sm font-semibold text-paper">{t.catalog.priceRange}</legend>
+        <legend className="mb-2.5 text-sm font-semibold text-paper">
+          {t.catalog.priceRange}
+        </legend>
         <div className="flex items-center gap-2">
           <label htmlFor={`${idPrefix}-catalog-min`} className="sr-only">
             {t.catalog.minPrice}
@@ -185,7 +196,10 @@ export function CatalogFilters({
             <FilterIcon className="size-5" />
             {t.catalog.showFilters}
           </span>
-          <span aria-hidden="true" className="text-mist-400 transition group-open:rotate-45">
+          <span
+            aria-hidden="true"
+            className="text-mist-400 transition group-open:rotate-45"
+          >
             +
           </span>
         </summary>

@@ -2,14 +2,18 @@
 
 import { Button } from "@/components/ui/button"
 import { FormMessage, inputClass } from "@/components/ui/field"
-import { t } from "@/lib/i18n"
+import { useT } from "@/components/i18n/locale-provider"
 import { subscribeToNewsletter, type NewsletterState } from "@/lib/medusa/newsletter"
 import { useFormAction } from "@/components/ui/use-form-action"
 
 const initial: NewsletterState = { status: "idle" }
 
 export function NewsletterForm({ source = "home" }: { source?: string }) {
-  const { state, action, onSubmit, pending } = useFormAction(subscribeToNewsletter, initial)
+  const t = useT()
+  const { state, action, onSubmit, pending } = useFormAction(
+    subscribeToNewsletter,
+    initial
+  )
 
   if (state.status === "success") {
     return <FormMessage tone="success">{state.message}</FormMessage>
@@ -47,7 +51,9 @@ export function NewsletterForm({ source = "home" }: { source?: string }) {
         />
         <span>{t.newsletter.consent}</span>
       </label>
-      {state.status === "error" && <FormMessage tone="error">{state.message}</FormMessage>}
+      {state.status === "error" && (
+        <FormMessage tone="error">{state.message}</FormMessage>
+      )}
     </form>
   )
 }

@@ -1,5 +1,5 @@
 import type { StoreBanner } from "@bonanza/types"
-import Link from "next/link"
+import { Link } from "@/components/ui/link"
 
 /** The thin strip above the header, fed by the `announcement` banner placement. */
 export function AnnouncementBar({ banner }: { banner: StoreBanner | undefined }) {

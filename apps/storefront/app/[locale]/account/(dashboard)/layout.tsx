@@ -2,17 +2,22 @@ import { redirect } from "next/navigation"
 import type { ReactNode } from "react"
 import { AccountNav } from "@/components/account/account-nav"
 import { buttonClass } from "@/components/ui/button"
-import { t } from "@/lib/i18n"
+import { getT, href, withLocale } from "@/lib/i18n/server"
 import { logout } from "@/lib/medusa/customer"
 import { retrieveCustomer } from "@/lib/medusa/customer-data"
 
 export const dynamic = "force-dynamic"
 
 /** The signed-in area. Guests are sent to the sign-in page. */
-export default async function AccountLayout({ children }: { children: ReactNode }) {
+export default withLocale(async function AccountLayout({
+  children,
+}: {
+  children: ReactNode
+}) {
+  const t = getT()
   const customer = await retrieveCustomer()
   if (!customer) {
-    redirect("/account/login")
+    redirect(href("/account/login"))
   }
   return (
     <div className="container-site pb-8 pt-8 lg:pt-10">
@@ -37,4 +42,4 @@ export default async function AccountLayout({ children }: { children: ReactNode 
       </div>
     </div>
   )
-}
+})

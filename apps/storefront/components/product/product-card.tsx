@@ -1,7 +1,7 @@
-import Link from "next/link"
+import { Link } from "@/components/ui/link"
 import { Price } from "@/components/ui/price"
 import { discountPercent } from "@/lib/format"
-import { t } from "@/lib/i18n"
+import { getT } from "@/lib/i18n/server"
 import type { CatalogItem } from "@/lib/medusa/catalog"
 import { ProductImage } from "./product-image"
 
@@ -18,6 +18,7 @@ export function ProductCard({
   priority?: boolean
   sizes?: string
 }) {
+  const t = getT()
   const percent =
     product.onSale && product.originalPrice && product.price
       ? discountPercent(product.originalPrice, product.price)

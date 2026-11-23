@@ -1,12 +1,12 @@
 "use client"
 
-import Link from "next/link"
+import { Link } from "@/components/ui/link"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Field, FormMessage } from "@/components/ui/field"
 import { LockIcon } from "@/components/ui/icons"
 import { formatPrice } from "@/lib/format"
-import { t } from "@/lib/i18n"
+import { useT } from "@/components/i18n/locale-provider"
 import {
   saveDetails,
   saveShippingMethod,
@@ -33,6 +33,7 @@ export function DetailsForm({
   billingDiffers: boolean
   signedIn: boolean
 }) {
+  const t = useT()
   const { state, action, onSubmit, pending } = useFormAction(saveDetails, idle)
   const [sameBilling, setSameBilling] = useState(!billingDiffers)
   const errors = state.fieldErrors ?? {}
@@ -57,7 +58,10 @@ export function DetailsForm({
         {!signedIn && (
           <p className="mt-3 text-sm text-mist-300">
             {t.checkout.guestNote} {t.checkout.haveAccount}{" "}
-            <Link href="/account/login?next=/checkout" className="font-semibold text-paper underline underline-offset-4">
+            <Link
+              href="/account/login?next=/checkout"
+              className="font-semibold text-paper underline underline-offset-4"
+            >
               {t.checkout.signIn}
             </Link>
           </p>
@@ -120,6 +124,7 @@ export function ShippingForm({
   options: ShippingOption[]
   selectedId: string | null
 }) {
+  const t = useT()
   const { state, action, onSubmit, pending } = useFormAction(saveShippingMethod, idle)
 
   if (!options.length) {
@@ -129,7 +134,9 @@ export function ShippingForm({
   return (
     <form action={action} onSubmit={onSubmit} className="space-y-6">
       <fieldset>
-        <legend className="mb-4 text-xl font-extrabold">{t.checkout.shippingMethod}</legend>
+        <legend className="mb-4 text-xl font-extrabold">
+          {t.checkout.shippingMethod}
+        </legend>
         <div className="space-y-3">
           {options.map((option, index) => (
             <label
@@ -147,7 +154,9 @@ export function ShippingForm({
               <span className="flex-1">
                 <span className="block font-semibold">{option.name}</span>
                 {option.description && (
-                  <span className="block text-sm text-mist-300">{option.description}</span>
+                  <span className="block text-sm text-mist-300">
+                    {option.description}
+                  </span>
                 )}
               </span>
               <span className="font-bold">
@@ -161,7 +170,9 @@ export function ShippingForm({
           ))}
         </div>
       </fieldset>
-      {state.status === "error" && <FormMessage tone="error">{state.message}</FormMessage>}
+      {state.status === "error" && (
+        <FormMessage tone="error">{state.message}</FormMessage>
+      )}
       <Button type="submit" size="lg" disabled={pending} className="w-full sm:w-auto">
         {t.checkout.continueToPayment}
       </Button>
@@ -170,7 +181,14 @@ export function ShippingForm({
 }
 
 /** Step 3: hand over to the payment page. */
-export function PaymentForm({ available, isTest }: { available: boolean; isTest: boolean }) {
+export function PaymentForm({
+  available,
+  isTest,
+}: {
+  available: boolean
+  isTest: boolean
+}) {
+  const t = useT()
   const { state, action, onSubmit, pending } = useFormAction(startPayment, idle)
 
   if (!available) {
@@ -182,7 +200,9 @@ export function PaymentForm({ available, isTest }: { available: boolean; isTest:
       <h2 className="text-xl">{t.checkout.paymentTitle}</h2>
       <p className="text-mist-300">{t.checkout.paymentRedirect}</p>
       {isTest && <FormMessage tone="info">{t.checkout.devPaymentNote}</FormMessage>}
-      {state.status === "error" && <FormMessage tone="error">{state.message}</FormMessage>}
+      {state.status === "error" && (
+        <FormMessage tone="error">{state.message}</FormMessage>
+      )}
       <Button type="submit" size="lg" disabled={pending} className="w-full sm:w-auto">
         <LockIcon className="size-5" />
         {pending ? t.checkout.processing : t.checkout.placeOrder}

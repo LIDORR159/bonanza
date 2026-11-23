@@ -1,5 +1,13 @@
 import "server-only"
-import { CATALOG_PAGE_SIZE, PUBLISHABLE_KEY, BACKEND_URL, REVALIDATE_SECONDS } from "../config"
+import {
+  BACKEND_URL,
+  CATALOG_PAGE_SIZE,
+  DEFAULT_LOCALE,
+  PUBLISHABLE_KEY,
+  REVALIDATE_SECONDS,
+} from "../config"
+import { getLocale } from "../i18n/server"
+import { cachedFetch } from "./client"
 
 /**
  * Product listings: search, category and brand pages, and the home page rails.
@@ -7,7 +15,13 @@ import { CATALOG_PAGE_SIZE, PUBLISHABLE_KEY, BACKEND_URL, REVALIDATE_SECONDS } f
  * is what makes price filtering and price sorting possible.
  */
 
-export const SORT_OPTIONS = ["relevance", "newest", "price-asc", "price-desc", "title"] as const
+export const SORT_OPTIONS = [
+  "relevance",
+  "newest",
+  "price-asc",
+  "price-desc",
+  "title",
+] as const
 export type SortOption = (typeof SORT_OPTIONS)[number]
 
 export type CatalogQuery = {
@@ -54,11 +68,28 @@ export type CatalogResult = {
   }
 }
 
-type SearchHit = { id: string; document: Record<string, any> }
+/** A product as the search index stores it (apps/backend/src/search/product.ts). */
+type SearchDocument = {
+  id: string
+  title?: string
+  handle?: string
+  thumbnail?: string | null
+  min_price_ils?: number | null
+  max_price_ils?: number | null
+  original_price_ils?: number | null
+  on_sale_ils?: boolean
+  brand?: string | null
+  brand_name?: string | null
+  labels?: string[]
+}
+type SearchHit = { id: string; document: SearchDocument }
 type SearchResult = {
   hits: SearchHit[]
   metadata?: { count?: number }
-  facets?: Record<string, { values?: { value: string; count: number }[]; min?: number; max?: number }>
+  facets?: Record<
+    string,
+    { values?: { value: string; count: number }[]; min?: number; max?: number }
+  >
 }
 
 /**
@@ -87,6 +118,34 @@ const toItem = ({ document: doc }: SearchHit): CatalogItem => ({
   brandName: doc.brand_name ?? null,
   labels: doc.labels ?? [],
 })
+
+/**
+ * The search index holds product titles in Hebrew only. On an English or
+ * Arabic page the titles of the products found are read again from the
+ * product API, which answers in the page's language.
+ */
+async function translateTitles(items: CatalogItem[]): Promise<CatalogItem[]> {
+  if (getLocale() === DEFAULT_LOCALE || !items.length) {
+    return items
+  }
+  try {
+    const { products } = await cachedFetch<{ products: { id: string; title: string }[] }>(
+      "/store/products",
+      {
+        query: {
+          id: items.map((item) => item.id),
+          fields: "id,title",
+          limit: items.length,
+        },
+        tags: ["products"],
+      }
+    )
+    const titles = new Map(products.map((product) => [product.id, product.title]))
+    return items.map((item) => ({ ...item, title: titles.get(item.id) ?? item.title }))
+  } catch {
+    return items
+  }
+}
 
 const EMPTY: CatalogResult = {
   items: [],
@@ -123,7 +182,11 @@ export async function searchCatalog(query: CatalogQuery = {}): Promise<CatalogRe
   const body = {
     entity: "product",
     filters,
-    pagination: { skip: (page - 1) * pageSize, take: pageSize, ...(order ? { order } : {}) },
+    pagination: {
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      ...(order ? { order } : {}),
+    },
     search_options: {
       count: "exact",
       // The last word matches as a prefix, so results appear while typing.
@@ -164,7 +227,7 @@ export async function searchCatalog(query: CatalogQuery = {}): Promise<CatalogRe
   const count = result.metadata?.count ?? result.hits.length
   const priceStats = result.facets?.min_price_ils
   return {
-    items: result.hits.map(toItem),
+    items: await translateTitles(result.hits.map(toItem)),
     count,
     page,
     pageCount: Math.ceil(count / pageSize),

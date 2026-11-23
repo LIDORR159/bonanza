@@ -11,10 +11,13 @@ export async function retrieveCustomer(): Promise<StoreCustomer | null> {
     return null
   }
   try {
-    const { customer } = await privateFetch<{ customer: StoreCustomer }>("/store/customers/me", {
-      query: { fields: "*addresses" },
-      headers: await authHeaders(),
-    })
+    const { customer } = await privateFetch<{ customer: StoreCustomer }>(
+      "/store/customers/me",
+      {
+        query: { fields: "*addresses" },
+        headers: await authHeaders(),
+      }
+    )
     return customer
   } catch {
     // An expired or revoked token reads as signed out.
@@ -36,7 +39,10 @@ const ORDER_FIELDS = [
 ].join(",")
 
 /** The signed-in customer's orders, newest first. */
-export async function listOrders(limit = 20, offset = 0): Promise<{ orders: StoreOrder[]; count: number }> {
+export async function listOrders(
+  limit = 20,
+  offset = 0
+): Promise<{ orders: StoreOrder[]; count: number }> {
   try {
     return await privateFetch<{ orders: StoreOrder[]; count: number }>("/store/orders", {
       query: { limit, offset, order: "-created_at", fields: ORDER_FIELDS },

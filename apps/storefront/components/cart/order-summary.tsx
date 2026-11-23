@@ -1,6 +1,6 @@
 import type { ReactNode } from "react"
 import { formatPrice } from "@/lib/format"
-import { t } from "@/lib/i18n"
+import { getT } from "@/lib/i18n/server"
 
 export type SummaryTotals = {
   /** Items at their listed prices, VAT included. */
@@ -12,7 +12,15 @@ export type SummaryTotals = {
   total: number
 }
 
-const Row = ({ label, children, strong }: { label: string; children: ReactNode; strong?: boolean }) => (
+const Row = ({
+  label,
+  children,
+  strong,
+}: {
+  label: string
+  children: ReactNode
+  strong?: boolean
+}) => (
   <div
     className={
       strong
@@ -25,7 +33,9 @@ const Row = ({ label, children, strong }: { label: string; children: ReactNode; 
   </div>
 )
 
-const Money = ({ amount }: { amount: number }) => <bdi dir="ltr">{formatPrice(amount)}</bdi>
+const Money = ({ amount }: { amount: number }) => (
+  <bdi dir="ltr">{formatPrice(amount)}</bdi>
+)
 
 /**
  * The order totals. Every figure is one Medusa calculated; nothing is added up
@@ -33,20 +43,21 @@ const Money = ({ amount }: { amount: number }) => <bdi dir="ltr">{formatPrice(am
  */
 export function OrderSummary({
   totals,
-  title = t.cart.summary,
+  title,
   children,
 }: {
   totals: SummaryTotals
   title?: string
   children?: ReactNode
 }) {
+  const t = getT()
   return (
     <section
       aria-labelledby="order-summary-title"
       className="rounded-lg border border-ink-600 bg-ink-850 p-6"
     >
       <h2 id="order-summary-title" className="mb-5 text-xl">
-        {title}
+        {title ?? t.cart.summary}
       </h2>
       <dl className="space-y-3">
         <Row label={t.cart.subtotal}>

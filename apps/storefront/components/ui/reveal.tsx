@@ -48,7 +48,11 @@ export function Reveal({
     <div
       ref={ref}
       style={state === "shown" ? { animationDelay: `${delay}ms` } : undefined}
-      className={clsx(className, state === "hidden" && "opacity-0", state === "shown" && "animate-rise")}
+      className={clsx(
+        className,
+        state === "hidden" && "opacity-0",
+        state === "shown" && "animate-rise"
+      )}
     >
       {children}
     </div>

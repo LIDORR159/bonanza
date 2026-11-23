@@ -1,9 +1,10 @@
 "use client"
 
 import { Button, ButtonLink } from "@/components/ui/button"
-import { t } from "@/lib/i18n"
+import { useT } from "@/components/i18n/locale-provider"
 
 export default function ErrorPage({ reset }: { error: Error; reset: () => void }) {
+  const t = useT()
   return (
     <div className="container-site flex min-h-[55vh] flex-col items-center justify-center py-20 text-center">
       <h1 className="text-4xl sm:text-5xl">{t.errors.errorTitle}</h1>

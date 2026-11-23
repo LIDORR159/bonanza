@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next"
 import { SITE_URL } from "@/lib/config"
+import { alternatePaths } from "@/lib/i18n"
 import { listCategories } from "@/lib/medusa/categories"
 import { listBrands, listPages } from "@/lib/medusa/content"
 import { listProductHandles } from "@/lib/medusa/products"
@@ -15,23 +16,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     listBrands(),
     listPages(),
   ])
-  const url = (path: string) => `${SITE_URL}${path}`
-  return [
-    { url: url("/"), changeFrequency: "daily", priority: 1 },
-    { url: url("/products"), changeFrequency: "daily", priority: 0.9 },
-    { url: url("/brands"), changeFrequency: "weekly", priority: 0.5 },
+  type Entry = Omit<MetadataRoute.Sitemap[number], "url"> & { path: string }
+  const entries: Entry[] = [
+    { path: "/", changeFrequency: "daily", priority: 1 },
+    { path: "/products", changeFrequency: "daily", priority: 0.9 },
+    { path: "/gallery", changeFrequency: "weekly", priority: 0.7 },
+    { path: "/brands", changeFrequency: "weekly", priority: 0.5 },
     ...categories.map((category) => ({
-      url: url(`/categories/${category.handle}`),
+      path: `/categories/${category.handle}`,
       changeFrequency: "daily" as const,
       priority: 0.8,
     })),
     ...brands.map((brand) => ({
-      url: url(`/brands/${brand.handle}`),
+      path: `/brands/${brand.handle}`,
       changeFrequency: "weekly" as const,
       priority: 0.5,
     })),
     ...products.map((product) => ({
-      url: url(`/products/${product.handle}`),
+      path: `/products/${product.handle}`,
       lastModified: new Date(product.updated_at),
       changeFrequency: "weekly" as const,
       priority: 0.7,
@@ -40,10 +42,25 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...pages
       .filter((page) => page.include_in_sitemap)
       .map((page) => ({
-        url: url(`/${page.slug}`),
+        path: `/${page.slug}`,
         lastModified: new Date(page.updated_at),
         changeFrequency: "monthly" as const,
         priority: 0.4,
       })),
   ]
+
+  // One entry per page, in Hebrew, naming its English and Arabic versions.
+  const absolute = (path: string) => `${SITE_URL}${path === "/" ? "" : path}` || SITE_URL
+  return entries.map(({ path, ...entry }) => ({
+    ...entry,
+    url: absolute(path),
+    alternates: {
+      languages: Object.fromEntries(
+        Object.entries(alternatePaths(path)).map(([locale, localized]) => [
+          locale,
+          absolute(localized),
+        ])
+      ),
+    },
+  }))
 }

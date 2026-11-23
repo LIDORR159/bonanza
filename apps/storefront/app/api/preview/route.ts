@@ -14,7 +14,13 @@ function isValidPreviewToken(token: string): boolean {
   const secret = process.env.CMS_PREVIEW_SECRET
   const parts = token.split(".")
   const [body, signature] = parts
-  if (!secret || parts.length !== 2 || !body || !signature || !/^[0-9a-f]{64}$/i.test(signature)) {
+  if (
+    !secret ||
+    parts.length !== 2 ||
+    !body ||
+    !signature ||
+    !/^[0-9a-f]{64}$/i.test(signature)
+  ) {
     return false
   }
   const expected = createHmac("sha256", secret).update(body).digest()
@@ -31,7 +37,9 @@ function isValidPreviewToken(token: string): boolean {
 
 /** Only ever redirect to a path on this site. */
 const safePath = (value: string | null) =>
-  value && value.startsWith("/") && !value.startsWith("//") && !value.includes("\\") ? value : "/"
+  value && value.startsWith("/") && !value.startsWith("//") && !value.includes("\\")
+    ? value
+    : "/"
 
 /**
  * Opens or closes content preview.
@@ -52,7 +60,10 @@ export async function GET(request: NextRequest) {
 
   const token = searchParams.get("token") ?? ""
   if (!isValidPreviewToken(token)) {
-    return NextResponse.json({ message: "Invalid or expired preview link" }, { status: 401 })
+    return NextResponse.json(
+      { message: "Invalid or expired preview link" },
+      { status: 401 }
+    )
   }
 
   draft.enable()

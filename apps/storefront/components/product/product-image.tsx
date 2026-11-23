@@ -1,6 +1,8 @@
+"use client"
+
 import clsx from "clsx"
 import Image from "next/image"
-import { t } from "@/lib/i18n"
+import { useT } from "@/components/i18n/locale-provider"
 
 /**
  * A product image on the grey well from the reference designs. The image is
@@ -21,6 +23,7 @@ export function ProductImage({
   className?: string
   padded?: boolean
 }) {
+  const t = useT()
   return (
     <div className={clsx("product-well relative overflow-hidden", className)}>
       {src ? (

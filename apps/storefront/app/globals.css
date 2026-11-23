@@ -29,7 +29,8 @@
 
   /* Editorial accent */
   --color-sage: #a9ab9d;
-  --color-sage-deep: #8f9184;
+  /* Dark enough for large off-white type (3.6:1) and for ink text (4.8:1). */
+  --color-sage-deep: #7d8072;
   --color-sage-ink: #f4f2e9;
 
   /* Feedback. Kept muted so they sit inside the monochrome palette. */
@@ -37,16 +38,24 @@
   --color-success: #a7d7b0;
   --color-warning: #ecd58a;
 
-  --font-sans: var(--font-heebo), "Heebo", "Arial Hebrew", Arial, sans-serif;
-  --font-serif: var(--font-frank), "Frank Ruhl Libre", "Times New Roman", serif;
+  /* The two colours that are not monochrome: review stars and the WhatsApp button. */
+  --color-star: #e9bd52;
+  --color-whatsapp: #25d366;
+
+  --font-sans:
+    var(--font-heebo), var(--font-arabic), "Heebo", "Arial Hebrew", Arial, sans-serif;
+  --font-serif:
+    var(--font-frank), var(--font-arabic), "Frank Ruhl Libre", "Times New Roman", serif;
 
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 10px;
   --radius-xl: 16px;
 
-  --shadow-card: 0 1px 0 rgb(255 255 255 / 0.04) inset, 0 18px 40px -22px rgb(0 0 0 / 0.9);
-  --shadow-raised: 0 1px 0 rgb(255 255 255 / 0.06) inset, 0 30px 60px -28px rgb(0 0 0 / 0.95);
+  --shadow-card:
+    0 1px 0 rgb(255 255 255 / 0.04) inset, 0 18px 40px -22px rgb(0 0 0 / 0.9);
+  --shadow-raised:
+    0 1px 0 rgb(255 255 255 / 0.06) inset, 0 30px 60px -28px rgb(0 0 0 / 0.95);
 
   --container-site: 76rem;
 
@@ -239,4 +248,42 @@
     padding: 0.6em 0.4em;
     text-align: start;
   }
+}
+
+/*
+ * Accessibility menu (components/layout/floating-actions.tsx). Each switch
+ * sets a data attribute on <html>.
+ */
+html[data-a11y-text="1"] {
+  font-size: 112.5%;
+}
+html[data-a11y-text="2"] {
+  font-size: 125%;
+}
+
+/* High contrast: text goes to white, hairlines become clearly visible lines. */
+html[data-a11y-contrast] {
+  --color-ink-950: #000000;
+  --color-ink-900: #050505;
+  --color-ink-850: #0a0a0a;
+  --color-ink-600: #8c8f94;
+  --color-ink-500: #b4b6ba;
+  --color-paper: #ffffff;
+  --color-mist-200: #ffffff;
+  --color-mist-300: #f1f1f1;
+  --color-mist-400: #dcdcdc;
+}
+
+html[data-a11y-links] a {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+html[data-a11y-motion="off"] *,
+html[data-a11y-motion="off"] *::before,
+html[data-a11y-motion="off"] *::after {
+  animation: none !important;
+  transition: none !important;
+  scroll-behavior: auto !important;
 }

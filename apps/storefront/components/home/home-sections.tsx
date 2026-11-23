@@ -2,15 +2,27 @@ import type { ProductSource, StoreHomepageSection } from "@bonanza/types"
 import { ProductGrid } from "@/components/product/product-card"
 import { Reveal } from "@/components/ui/reveal"
 import { SectionHeading } from "@/components/ui/section-heading"
-import { t } from "@/lib/i18n"
+import { getT } from "@/lib/i18n/server"
 import { searchCatalog, type CatalogItem, type CatalogQuery } from "@/lib/medusa/catalog"
 import { listCategories } from "@/lib/medusa/categories"
-import { getBanners, listBrands } from "@/lib/medusa/content"
+import {
+  getBanners,
+  getGalleryItems,
+  getReviews,
+  getServiceGroups,
+  getSettings,
+  listBrands,
+} from "@/lib/medusa/content"
+import { AboutSection } from "./about-section"
 import { AcademySection } from "./academy-section"
 import { BannerBlock } from "./banner-block"
 import { BrandStrip } from "./brand-strip"
 import { CategoryTiles } from "./category-tiles"
+import { GalleryGrid } from "./gallery-grid"
 import { Hero } from "./hero"
+import { InfoStrip } from "./info-strip"
+import { PricingSection } from "./pricing-section"
+import { ReviewsSection } from "./reviews-section"
 import { NewsletterForm } from "./newsletter-form"
 
 /**
@@ -51,6 +63,7 @@ const Block = ({ children, id }: { children: React.ReactNode; id: string }) => (
 )
 
 async function Section({ section }: { section: StoreHomepageSection }) {
+  const t = getT()
   switch (section.type) {
     case "product_rail": {
       const products = await railProducts(section)
@@ -59,7 +72,11 @@ async function Section({ section }: { section: StoreHomepageSection }) {
       }
       return (
         <Block id={section.key}>
-          <SectionHeading title={section.title} eyebrow={section.subtitle} link={section.cta} />
+          <SectionHeading
+            title={section.title}
+            eyebrow={section.subtitle}
+            link={section.cta}
+          />
           <ProductGrid products={products} />
         </Block>
       )
@@ -79,20 +96,25 @@ async function Section({ section }: { section: StoreHomepageSection }) {
           name: category.name,
           handle: category.handle,
           image:
-            (await searchCatalog({ categoryId: category.id, pageSize: 1 })).items[0]?.thumbnail ??
-            null,
+            (await searchCatalog({ categoryId: category.id, pageSize: 1 })).items[0]
+              ?.thumbnail ?? null,
         }))
       )
       return (
         <Block id={section.key}>
-          <SectionHeading title={section.title ?? t.home.categoriesTitle} link={section.cta} />
+          <SectionHeading
+            title={section.title ?? t.home.categoriesTitle}
+            link={section.cta}
+          />
           <CategoryTiles categories={tiles} />
         </Block>
       )
     }
 
     case "banner_slot": {
-      const [banner] = await getBanners(section.settings.banner_placement ?? "home_primary")
+      const [banner] = await getBanners(
+        section.settings.banner_placement ?? "home_primary"
+      )
       if (!banner) {
         return null
       }
@@ -104,14 +126,77 @@ async function Section({ section }: { section: StoreHomepageSection }) {
     }
 
     case "brands": {
-      const brands = (await listBrands({ featured: true })).slice(0, section.settings.limit ?? 8)
+      const brands = (await listBrands({ featured: true })).slice(
+        0,
+        section.settings.limit ?? 8
+      )
       if (!brands.length) {
         return null
       }
       return (
         <Block id={section.key}>
-          <SectionHeading title={section.title ?? t.home.brandsTitle} link={section.cta} />
+          <SectionHeading
+            title={section.title ?? t.home.brandsTitle}
+            link={section.cta}
+          />
           <BrandStrip brands={brands} />
+        </Block>
+      )
+    }
+
+    case "info_strip":
+      return <InfoStrip settings={await getSettings()} />
+
+    case "about":
+      return (
+        <Block id={section.key}>
+          <AboutSection section={section} />
+        </Block>
+      )
+
+    case "pricing": {
+      const [groups, settings] = await Promise.all([getServiceGroups(), getSettings()])
+      return (
+        <Block id={section.key}>
+          <PricingSection
+            section={section}
+            groups={groups}
+            bookingUrl={settings.booking_url}
+          />
+        </Block>
+      )
+    }
+
+    case "gallery": {
+      const limit = section.settings.limit ?? 4
+      // Featured works first; with none marked, the newest ones.
+      let items = await getGalleryItems({ featured: true, limit })
+      if (!items.length) {
+        items = await getGalleryItems({ limit })
+      }
+      if (!items.length) {
+        return null
+      }
+      return (
+        <Block id={section.key}>
+          <SectionHeading
+            title={section.title ?? t.gallery.title}
+            eyebrow={section.subtitle}
+            link={section.cta ?? { label: t.gallery.viewAll, url: "/gallery" }}
+          />
+          <GalleryGrid items={items} />
+        </Block>
+      )
+    }
+
+    case "reviews": {
+      const { reviews, summary } = await getReviews(section.settings.limit ?? 3)
+      if (!reviews.length && summary.rating == null) {
+        return null
+      }
+      return (
+        <Block id={section.key}>
+          <ReviewsSection section={section} reviews={reviews} summary={summary} />
         </Block>
       )
     }
@@ -143,7 +228,9 @@ async function Section({ section }: { section: StoreHomepageSection }) {
         <Block id={section.key}>
           <div className="mx-auto max-w-2xl rounded-xl border border-ink-600/70 bg-ink-850 p-7 sm:p-10">
             <h2 className="text-2xl sm:text-3xl">{section.title}</h2>
-            {section.subtitle && <p className="mb-6 mt-2 text-mist-300">{section.subtitle}</p>}
+            {section.subtitle && (
+              <p className="mb-6 mt-2 text-mist-300">{section.subtitle}</p>
+            )}
             <NewsletterForm />
           </div>
         </Block>
@@ -185,6 +272,7 @@ export async function HomeSections({ sections }: { sections: StoreHomepageSectio
 
 /** The home page shown before any section exists in the admin. */
 export async function DefaultHome() {
+  const t = getT()
   const { items } = await searchCatalog({ sort: "newest", pageSize: 8 })
   return (
     <>
@@ -193,7 +281,6 @@ export async function DefaultHome() {
           title: t.brand.name,
           subtitle: null,
           image_url: null,
-          mobile_image_url: null,
           image_alt: null,
           cta: { label: t.home.shopNow, url: "/products" },
           secondary_cta: null,

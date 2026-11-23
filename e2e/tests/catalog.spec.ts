@@ -2,11 +2,12 @@ import { expect, test, type Page } from "@playwright/test"
 
 /** Category navigation, filters, sorting, search and pagination. */
 
-const cardTitles = (page: Page) => page.getByRole("article").getByRole("heading").allTextContents()
+const cardTitles = (page: Page) =>
+  page.getByRole("article").getByRole("heading").allTextContents()
 
 const cardPrices = async (page: Page) =>
-  (await page.getByRole("article").locator("span.font-bold > bdi").allTextContents()).map((text) =>
-    Number(text.replace(/[₪,]/g, ""))
+  (await page.getByRole("article").locator("span.font-bold > bdi").allTextContents()).map(
+    (text) => Number(text.replace(/[₪,]/g, ""))
   )
 
 test("a category shows only its products", async ({ page }) => {
@@ -23,7 +24,10 @@ test("the catalog paginates", async ({ page }) => {
   await expect(page.getByRole("article")).toHaveCount(12)
   const first = await cardTitles(page)
 
-  await page.getByRole("navigation", { name: "מעבר בין עמודים" }).getByRole("link", { name: "עמוד 2" }).click()
+  await page
+    .getByRole("navigation", { name: "מעבר בין עמודים" })
+    .getByRole("link", { name: "עמוד 2" })
+    .click()
   await expect(page).toHaveURL(/page=2/)
   const second = await cardTitles(page)
   expect(second).toHaveLength(12)
@@ -49,7 +53,9 @@ test("the filter form narrows by brand and price", async ({ page, isMobile }) =>
   if (isMobile) {
     await page.getByText("סינון ומיון").click()
   }
-  const filters = isMobile ? page.locator("details") : page.getByRole("complementary", { name: "סינון" })
+  const filters = isMobile
+    ? page.locator("details")
+    : page.getByRole("complementary", { name: "סינון" })
   await filters.getByLabel("Barbera").check()
   await filters.getByLabel("ממחיר").fill("60")
   await filters.getByLabel("עד מחיר").fill("70")
@@ -63,7 +69,10 @@ test("the filter form narrows by brand and price", async ({ page, isMobile }) =>
     expect(price).toBeGreaterThanOrEqual(60)
     expect(price).toBeLessThanOrEqual(70)
   }
-  for (const brand of await page.getByRole("article").locator("p bdi").allTextContents()) {
+  for (const brand of await page
+    .getByRole("article")
+    .locator("p bdi")
+    .allTextContents()) {
     expect(brand).toBe("Barbera")
   }
 
@@ -71,7 +80,9 @@ test("the filter form narrows by brand and price", async ({ page, isMobile }) =>
   await expect(page.getByText("37 מוצרים")).toBeVisible()
 })
 
-test("the sale filter shows only reduced products, with both prices", async ({ page }) => {
+test("the sale filter shows only reduced products, with both prices", async ({
+  page,
+}) => {
   await page.goto("/products?sale=1")
   await expect(page.getByRole("heading", { name: "מבצעים", level: 1 })).toBeVisible()
   const cards = page.getByRole("article")
@@ -82,7 +93,9 @@ test("the sale filter shows only reduced products, with both prices", async ({ p
   }
 })
 
-test("search finds Hebrew words, including ones with a prefix attached", async ({ page }) => {
+test("search finds Hebrew words, including ones with a prefix attached", async ({
+  page,
+}) => {
   await page.goto("/")
   await page.getByRole("button", { name: "חיפוש" }).click()
   await page.getByRole("searchbox", { name: "חיפוש" }).fill("זקן")
@@ -107,9 +120,13 @@ test("a brand page lists that brand's products", async ({ page }) => {
   await expect(page.getByRole("article")).toHaveCount(3)
 })
 
-test("the product page shows variants, stock, specifications and related products", async ({ page }) => {
+test("the product page shows variants, stock, specifications and related products", async ({
+  page,
+}) => {
   await page.goto("/products/maestro-cutting-scissors")
-  await expect(page.getByRole("heading", { name: "מספרי תספורת Maestro", level: 1 })).toBeVisible()
+  await expect(
+    page.getByRole("heading", { name: "מספרי תספורת Maestro", level: 1 })
+  ).toBeVisible()
   await expect(page.getByText("המחיר כולל מע״מ")).toBeVisible()
 
   // Three lengths, each with its own price; the 6.5" one is out of stock.
@@ -124,11 +141,17 @@ test("the product page shows variants, stock, specifications and related product
 
   await expect(page.getByRole("heading", { name: "מפרט" })).toBeVisible()
   await expect(page.getByText("58–60 HRC")).toBeVisible()
-  await expect(page.getByRole("heading", { name: "מוצרים נוספים שיעניינו אותך" })).toBeVisible()
+  await expect(
+    page.getByRole("heading", { name: "מוצרים נוספים שיעניינו אותך" })
+  ).toBeVisible()
 
   // Structured data for search engines, with the VAT-inclusive price.
-  const jsonLd = await page.locator('script[type="application/ld+json"]').allTextContents()
-  const product = jsonLd.map((text) => JSON.parse(text)).find((data) => data["@type"] === "Product")
+  const jsonLd = await page
+    .locator('script[type="application/ld+json"]')
+    .allTextContents()
+  const product = jsonLd
+    .map((text) => JSON.parse(text))
+    .find((data) => data["@type"] === "Product")
   expect(product.offers.priceCurrency).toBe("ILS")
   expect(product.offers.price).toBe("329.00")
   expect(product.brand.name).toBe("Maestro")

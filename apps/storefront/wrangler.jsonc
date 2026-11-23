@@ -1,0 +1,39 @@
+{
+  // Cloudflare Workers target for the storefront. Nothing here is deployed:
+  // `pnpm cf:preview` runs it locally, and a deploy needs explicit approval
+  // (docs/cloudflare-deployment.md). Names below are placeholders until then.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "bonanza-storefront",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [
+    // The Worker calls itself to refresh cached pages; the name must match "name".
+    { "binding": "WORKER_SELF_REFERENCE", "service": "bonanza-storefront" }
+  ],
+  "r2_buckets": [
+    // Cache of rendered pages. The bucket must exist before a deploy.
+    { "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "bonanza-storefront-cache" }
+  ],
+  "d1_databases": [
+    // Cache tags. Replace the id with the one `wrangler d1 create` prints.
+    {
+      "binding": "NEXT_TAG_CACHE_D1",
+      "database_name": "bonanza-storefront-tags",
+      "database_id": "00000000-0000-0000-0000-000000000000"
+    }
+  ],
+  // The Cloudflare Images binding is left out on purpose: it is billed past a
+  // small allowance. Without it images are served as uploaded.
+  "vars": {
+    // Non-secret settings. Secrets (REVALIDATE_SECRET, CMS_PREVIEW_SECRET) are
+    // set with `wrangler secret put`, and locally in `.dev.vars`.
+    "ALLOW_INDEXING": "false",
+    "DEFAULT_COUNTRY": "il"
+  },
+  "observability": { "enabled": true }
+}

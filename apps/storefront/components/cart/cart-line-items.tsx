@@ -1,13 +1,13 @@
 "use client"
 
 import Image from "next/image"
-import Link from "next/link"
+import { Link } from "@/components/ui/link"
 import { useRouter } from "next/navigation"
 import { useState, useTransition } from "react"
 import { TrashIcon } from "@/components/ui/icons"
 import { Price } from "@/components/ui/price"
 import { QuantityInput } from "@/components/ui/quantity-input"
-import { t } from "@/lib/i18n"
+import { useT } from "@/components/i18n/locale-provider"
 import { removeLineItem, updateLineItem } from "@/lib/medusa/cart"
 import { useCart } from "./cart-context"
 
@@ -27,6 +27,7 @@ export type CartLine = {
 
 /** The cart's lines, with quantity and remove controls. */
 export function CartLineItems({ lines }: { lines: CartLine[] }) {
+  const t = useT()
   const router = useRouter()
   const { setCount } = useCart()
   const [pending, startTransition] = useTransition()
@@ -51,7 +52,10 @@ export function CartLineItems({ lines }: { lines: CartLine[] }) {
   return (
     <div>
       {error && (
-        <p role="alert" className="mb-4 rounded-md border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+        <p
+          role="alert"
+          className="mb-4 rounded-md border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger"
+        >
           {error}
         </p>
       )}
@@ -94,7 +98,11 @@ export function CartLineItems({ lines }: { lines: CartLine[] }) {
                 )}
                 <p className="mt-1.5 text-sm text-mist-300">
                   <span className="sr-only">{t.cart.unitPrice}: </span>
-                  <Price amount={line.unitPrice} original={line.compareAtUnitPrice} size="sm" />
+                  <Price
+                    amount={line.unitPrice}
+                    original={line.compareAtUnitPrice}
+                    size="sm"
+                  />
                 </p>
 
                 <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -105,7 +113,9 @@ export function CartLineItems({ lines }: { lines: CartLine[] }) {
                     disabled={pending}
                     onChange={(quantity) => {
                       if (quantity !== line.quantity) {
-                        change(line.id, () => updateLineItem({ lineId: line.id, quantity }))
+                        change(line.id, () =>
+                          updateLineItem({ lineId: line.id, quantity })
+                        )
                       }
                     }}
                   />

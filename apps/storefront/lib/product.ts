@@ -1,4 +1,5 @@
 import type { HttpTypes } from "@medusajs/types"
+import type { Dictionary } from "./i18n"
 
 /**
  * Reading prices, stock and specifications off a Medusa product. Nothing here
@@ -69,15 +70,21 @@ export function maxPurchasable(variant: Variant | undefined | null): number {
  * Specifications are metadata entries whose key starts with `spec:`, so staff
  * can edit them in the product's Metadata section of the admin.
  */
-export function productSpecs(product: HttpTypes.StoreProduct): { label: string; value: string }[] {
+export function productSpecs(
+  product: HttpTypes.StoreProduct,
+  t: Dictionary
+): { label: string; value: string }[] {
   const specs = Object.entries(product.metadata ?? {})
     .filter(([key, value]) => key.startsWith("spec:") && value != null && value !== "")
     .map(([key, value]) => ({ label: key.slice(5), value: String(value) }))
   if (product.weight) {
     const grams = Number(product.weight)
     specs.push({
-      label: "משקל",
-      value: grams >= 1000 ? `${(grams / 1000).toLocaleString("he-IL")} ק״ג` : `${grams} גרם`,
+      label: t.product_specs.weight,
+      value:
+        grams >= 1000
+          ? t.product_specs.kilograms(String(grams / 1000))
+          : t.product_specs.grams(grams),
     })
   }
   return specs

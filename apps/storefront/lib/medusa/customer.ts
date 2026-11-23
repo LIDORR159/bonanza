@@ -3,9 +3,16 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { isEmail, isIsraeliPostalCode, normalizeIsraeliPhone } from "../format"
-import { t } from "../i18n"
+import type { Dictionary } from "../i18n"
+import { actionHref, actionT } from "../i18n/action"
 import { sdk } from "./client"
-import { authHeaders, clearAuthToken, clearCartId, getCartId, setAuthToken } from "./cookies"
+import {
+  authHeaders,
+  clearAuthToken,
+  clearCartId,
+  getCartId,
+  setAuthToken,
+} from "./cookies"
 
 /**
  * Customer accounts, built on Medusa's own email-and-password authentication.
@@ -23,9 +30,11 @@ const text = (formData: FormData, name: string) => String(formData.get(name) ?? 
 
 /** Only ever send a visitor to a path on this site after signing in. */
 const safeNext = (value: string) =>
-  value.startsWith("/") && !value.startsWith("//") && !value.includes("\\") ? value : "/account"
+  value.startsWith("/") && !value.startsWith("//") && !value.includes("\\")
+    ? value
+    : "/account"
 
-const authError = (error: unknown): string => {
+const authError = (error: unknown, t: Dictionary): string => {
   const status = (error as { status?: number }).status
   if (status === 429) {
     return t.account.errors.tooManyAttempts
@@ -40,11 +49,17 @@ const authError = (error: unknown): string => {
 async function claimCart() {
   const cartId = await getCartId()
   if (cartId) {
-    await sdk.store.cart.transferCart(cartId, {}, await authHeaders()).catch(() => undefined)
+    await sdk.store.cart
+      .transferCart(cartId, {}, await authHeaders())
+      .catch(() => undefined)
   }
 }
 
-export async function login(_previous: FormState, formData: FormData): Promise<FormState> {
+export async function login(
+  _previous: FormState,
+  formData: FormData
+): Promise<FormState> {
+  const t = await actionT()
   const email = text(formData, "email").toLowerCase()
   const password = String(formData.get("password") ?? "")
   if (!isEmail(email) || !password) {
@@ -58,12 +73,16 @@ export async function login(_previous: FormState, formData: FormData): Promise<F
     await setAuthToken(token)
     await claimCart()
   } catch (error) {
-    return { status: "error", message: authError(error) }
+    return { status: "error", message: authError(error, t) }
   }
-  redirect(safeNext(text(formData, "next")))
+  redirect(await actionHref(safeNext(text(formData, "next"))))
 }
 
-export async function register(_previous: FormState, formData: FormData): Promise<FormState> {
+export async function register(
+  _previous: FormState,
+  formData: FormData
+): Promise<FormState> {
+  const t = await actionT()
   const email = text(formData, "email").toLowerCase()
   const password = String(formData.get("password") ?? "")
   const firstName = text(formData, "first_name")
@@ -76,7 +95,8 @@ export async function register(_previous: FormState, formData: FormData): Promis
   if (!lastName) fieldErrors.last_name = t.checkout.errors.required
   if (!isEmail(email)) fieldErrors.email = t.checkout.errors.email
   if (phoneInput && !phone) fieldErrors.phone = t.checkout.errors.phone
-  if (password.length < MIN_PASSWORD) fieldErrors.password = t.account.errors.passwordShort
+  if (password.length < MIN_PASSWORD)
+    fieldErrors.password = t.account.errors.passwordShort
   if (Object.keys(fieldErrors).length) {
     return { status: "error", fieldErrors }
   }
@@ -84,7 +104,10 @@ export async function register(_previous: FormState, formData: FormData): Promis
   try {
     // 1. Create the login. 2. Create the customer it belongs to. 3. Sign in
     // again, because only a token issued after step 2 carries the customer.
-    const registrationToken = await sdk.auth.register("customer", "emailpass", { email, password })
+    const registrationToken = await sdk.auth.register("customer", "emailpass", {
+      email,
+      password,
+    })
     await sdk.store.customer.create(
       { email, first_name: firstName, last_name: lastName, phone: phone ?? undefined },
       {},
@@ -107,7 +130,7 @@ export async function register(_previous: FormState, formData: FormData): Promis
     }
     return { status: "error", message: t.common.genericError }
   }
-  redirect(safeNext(text(formData, "next")))
+  redirect(await actionHref(safeNext(text(formData, "next"))))
 }
 
 export async function logout(): Promise<void> {
@@ -115,7 +138,7 @@ export async function logout(): Promise<void> {
   // The cart belonged to the customer; a new visitor on this browser starts empty.
   await clearCartId()
   revalidatePath("/", "layout")
-  redirect("/account/login")
+  redirect(await actionHref("/account/login"))
 }
 
 /**
@@ -126,6 +149,7 @@ export async function requestPasswordReset(
   _previous: FormState,
   formData: FormData
 ): Promise<FormState> {
+  const t = await actionT()
   const email = text(formData, "email").toLowerCase()
   if (!isEmail(email)) {
     return { status: "error", fieldErrors: { email: t.checkout.errors.email } }
@@ -141,7 +165,11 @@ export async function requestPasswordReset(
   return { status: "success", message: t.account.resetSent }
 }
 
-export async function resetPassword(_previous: FormState, formData: FormData): Promise<FormState> {
+export async function resetPassword(
+  _previous: FormState,
+  formData: FormData
+): Promise<FormState> {
+  const t = await actionT()
   const token = text(formData, "token")
   const email = text(formData, "email").toLowerCase()
   const password = String(formData.get("password") ?? "")
@@ -151,7 +179,10 @@ export async function resetPassword(_previous: FormState, formData: FormData): P
     return { status: "error", fieldErrors: { password: t.account.errors.passwordShort } }
   }
   if (password !== confirm) {
-    return { status: "error", fieldErrors: { confirm_password: t.account.errors.passwordMismatch } }
+    return {
+      status: "error",
+      fieldErrors: { confirm_password: t.account.errors.passwordMismatch },
+    }
   }
   if (!token || !isEmail(email)) {
     return { status: "error", message: t.account.resetInvalid }
@@ -170,7 +201,11 @@ export async function resetPassword(_previous: FormState, formData: FormData): P
   return { status: "success", message: t.account.resetDone }
 }
 
-export async function updateProfile(_previous: FormState, formData: FormData): Promise<FormState> {
+export async function updateProfile(
+  _previous: FormState,
+  formData: FormData
+): Promise<FormState> {
+  const t = await actionT()
   const firstName = text(formData, "first_name")
   const lastName = text(formData, "last_name")
   const phoneInput = text(formData, "phone")
@@ -198,6 +233,7 @@ export async function updateProfile(_previous: FormState, formData: FormData): P
 
 /** Reads and checks the address fields shared by the address book and checkout. */
 export async function parseAddress(formData: FormData, prefix = "") {
+  const t = await actionT()
   const field = (name: string) => text(formData, `${prefix}${name}`)
   const phoneInput = field("phone")
   const phone = phoneInput ? normalizeIsraeliPhone(phoneInput) : null
@@ -228,13 +264,20 @@ export async function parseAddress(formData: FormData, prefix = "") {
   }
 }
 
-export async function saveAddress(_previous: FormState, formData: FormData): Promise<FormState> {
+export async function saveAddress(
+  _previous: FormState,
+  formData: FormData
+): Promise<FormState> {
+  const t = await actionT()
   const { address, fieldErrors } = await parseAddress(formData)
   if (Object.keys(fieldErrors).length) {
     return { status: "error", fieldErrors }
   }
   const id = text(formData, "address_id")
-  const body = { ...address, is_default_shipping: formData.get("is_default_shipping") === "on" }
+  const body = {
+    ...address,
+    is_default_shipping: formData.get("is_default_shipping") === "on",
+  }
   try {
     if (id) {
       await sdk.store.customer.updateAddress(id, body, {}, await authHeaders())

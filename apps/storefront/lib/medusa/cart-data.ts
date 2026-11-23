@@ -25,7 +25,9 @@ export const CART_FIELDS = [
 ].join(",")
 
 /** The visitor's cart, or null when they have none. Never cached. */
-export async function retrieveCart(fields: string = CART_FIELDS): Promise<StoreCart | null> {
+export async function retrieveCart(
+  fields: string = CART_FIELDS
+): Promise<StoreCart | null> {
   const id = await getCartId()
   if (!id) {
     return null

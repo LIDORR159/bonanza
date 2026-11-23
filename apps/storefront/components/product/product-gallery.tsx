@@ -3,11 +3,12 @@
 import clsx from "clsx"
 import Image from "next/image"
 import { useState } from "react"
-import { t } from "@/lib/i18n"
+import { useT } from "@/components/i18n/locale-provider"
 import { ProductImage } from "./product-image"
 
 /** The main product image with a row of thumbnails beneath it. */
 export function ProductGallery({ images, title }: { images: string[]; title: string }) {
+  const t = useT()
   const [active, setActive] = useState(0)
   const current = images[active] ?? images[0] ?? null
 
@@ -33,10 +34,18 @@ export function ProductGallery({ images, title }: { images: string[]; title: str
                 onClick={() => setActive(index)}
                 className={clsx(
                   "product-well relative block aspect-square w-full overflow-hidden rounded-md border-2 transition",
-                  index === active ? "border-paper" : "border-transparent opacity-70 hover:opacity-100"
+                  index === active
+                    ? "border-paper"
+                    : "border-transparent opacity-70 hover:opacity-100"
                 )}
               >
-                <Image src={image} alt="" fill sizes="120px" className="object-contain p-[12%]" />
+                <Image
+                  src={image}
+                  alt=""
+                  fill
+                  sizes="120px"
+                  className="object-contain p-[12%]"
+                />
               </button>
             </li>
           ))}

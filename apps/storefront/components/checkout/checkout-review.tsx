@@ -1,9 +1,9 @@
 import Image from "next/image"
-import Link from "next/link"
+import { Link } from "@/components/ui/link"
 import type { CartLine } from "@/components/cart/cart-line-items"
 import { OrderSummary, type SummaryTotals } from "@/components/cart/order-summary"
 import { formatIsraeliPhone, formatPrice } from "@/lib/format"
-import { t } from "@/lib/i18n"
+import { getT } from "@/lib/i18n/server"
 
 type Address = {
   first_name?: string | null
@@ -38,7 +38,14 @@ export function AddressBlock({ address }: { address: Address | undefined }) {
 }
 
 /** The side panel of the checkout: the items, then the totals. */
-export function CheckoutSummary({ lines, totals }: { lines: CartLine[]; totals: SummaryTotals }) {
+export function CheckoutSummary({
+  lines,
+  totals,
+}: {
+  lines: CartLine[]
+  totals: SummaryTotals
+}) {
+  const t = getT()
   return (
     <OrderSummary totals={totals} title={t.checkout.review}>
       <ul className="-mt-1 divide-y divide-ink-700 border-t border-ink-700">
@@ -46,7 +53,13 @@ export function CheckoutSummary({ lines, totals }: { lines: CartLine[]; totals: 
           <li key={line.id} className="flex items-center gap-3 py-3">
             <div className="product-well relative size-14 shrink-0 overflow-hidden rounded-md">
               {line.thumbnail && (
-                <Image src={line.thumbnail} alt="" fill sizes="56px" className="object-contain p-1" />
+                <Image
+                  src={line.thumbnail}
+                  alt=""
+                  fill
+                  sizes="56px"
+                  className="object-contain p-1"
+                />
               )}
             </div>
             <div className="min-w-0 flex-1 text-sm">
@@ -66,7 +79,10 @@ export function CheckoutSummary({ lines, totals }: { lines: CartLine[]; totals: 
           </li>
         ))}
       </ul>
-      <Link href="/cart" className="block text-sm text-mist-300 underline underline-offset-4 hover:text-paper">
+      <Link
+        href="/cart"
+        className="block text-sm text-mist-300 underline underline-offset-4 hover:text-paper"
+      >
         {t.checkout.change}
       </Link>
     </OrderSummary>

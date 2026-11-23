@@ -1,23 +1,27 @@
 "use client"
 
 import clsx from "clsx"
-import Link from "next/link"
+import { Link } from "@/components/ui/link"
 import { usePathname } from "next/navigation"
-import { t } from "@/lib/i18n"
-
-const LINKS = [
-  { href: "/account", label: t.account.overview, exact: true },
-  { href: "/account/orders", label: t.account.orders },
-  { href: "/account/addresses", label: t.account.addresses },
-  { href: "/account/profile", label: t.account.profile },
-]
+import { useT } from "@/components/i18n/locale-provider"
+import { splitLocale } from "@/lib/i18n"
 
 export function AccountNav() {
-  const pathname = usePathname()
+  const t = useT()
+  // The address without its language prefix, so `/en/account` matches `/account`.
+  const pathname = splitLocale(usePathname()).rest
+  const links = [
+    { href: "/account", label: t.account.overview, exact: true },
+    { href: "/account/orders", label: t.account.orders },
+    { href: "/account/addresses", label: t.account.addresses },
+    { href: "/account/profile", label: t.account.profile },
+  ]
   return (
     <ul className="flex gap-1 overflow-x-auto lg:flex-col">
-      {LINKS.map((link) => {
-        const current = link.exact ? pathname === link.href : pathname.startsWith(link.href)
+      {links.map((link) => {
+        const current = link.exact
+          ? pathname === link.href
+          : pathname.startsWith(link.href)
         return (
           <li key={link.href}>
             <Link

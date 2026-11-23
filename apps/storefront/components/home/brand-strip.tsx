@@ -1,6 +1,6 @@
 import type { StoreBrand } from "@bonanza/types"
 import Image from "next/image"
-import Link from "next/link"
+import { Link } from "@/components/ui/link"
 
 /** Brand tiles: the logo when one is uploaded, otherwise the name set as a wordmark. */
 export function BrandStrip({ brands }: { brands: StoreBrand[] }) {

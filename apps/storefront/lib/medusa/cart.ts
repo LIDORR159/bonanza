@@ -1,7 +1,8 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
-import { t } from "../i18n"
+import type { Dictionary } from "../i18n"
+import { actionT } from "../i18n/action"
 import { cartItemCount, retrieveCart } from "./cart-data"
 import { errorMessage, sdk } from "./client"
 import { authHeaders, getCartId, setCartId } from "./cookies"
@@ -20,26 +21,36 @@ async function ensureCartId(): Promise<string> {
     return existing.id
   }
   const region = await getRegion()
-  const { cart } = await sdk.store.cart.create({ region_id: region.id }, {}, await authHeaders())
+  const { cart } = await sdk.store.cart.create(
+    { region_id: region.id },
+    {},
+    await authHeaders()
+  )
   await setCartId(cart.id)
   return cart.id
 }
 
-const stockOrGeneric = (error: unknown): string => {
+const stockOrGeneric = (error: unknown, t: Dictionary): string => {
   const message = errorMessage(error, "")
-  return /inventory|stock|quantity/i.test(message) ? t.cart.stockLimit : t.common.genericError
+  return /inventory|stock|quantity/i.test(message)
+    ? t.cart.stockLimit
+    : t.common.genericError
 }
 
 async function result(): Promise<CartActionResult> {
   revalidatePath("/[locale]/cart", "page")
   revalidatePath("/[locale]/checkout", "page")
-  return { ok: true, count: cartItemCount(await retrieveCart("id,items.quantity,completed_at")) }
+  return {
+    ok: true,
+    count: cartItemCount(await retrieveCart("id,items.quantity,completed_at")),
+  }
 }
 
 export async function addToCart(input: {
   variantId: string
   quantity: number
 }): Promise<CartActionResult> {
+  const t = await actionT()
   const quantity = Math.floor(input.quantity)
   if (!input.variantId || !Number.isFinite(quantity) || quantity < 1 || quantity > 99) {
     return { ok: false, error: t.common.genericError }
@@ -54,7 +65,7 @@ export async function addToCart(input: {
     )
     return result()
   } catch (error) {
-    return { ok: false, error: stockOrGeneric(error) }
+    return { ok: false, error: stockOrGeneric(error, t) }
   }
 }
 
@@ -62,9 +73,16 @@ export async function updateLineItem(input: {
   lineId: string
   quantity: number
 }): Promise<CartActionResult> {
+  const t = await actionT()
   const cartId = await getCartId()
   const quantity = Math.floor(input.quantity)
-  if (!cartId || !input.lineId || !Number.isFinite(quantity) || quantity < 0 || quantity > 99) {
+  if (
+    !cartId ||
+    !input.lineId ||
+    !Number.isFinite(quantity) ||
+    quantity < 0 ||
+    quantity > 99
+  ) {
     return { ok: false, error: t.common.genericError }
   }
   try {
@@ -81,7 +99,7 @@ export async function updateLineItem(input: {
     }
     return result()
   } catch (error) {
-    return { ok: false, error: stockOrGeneric(error) }
+    return { ok: false, error: stockOrGeneric(error, t) }
   }
 }
 
@@ -98,7 +116,11 @@ export type PromoState = { status: "idle" | "success" | "error"; message?: strin
  * is tried as typed and then in capitals, which is how codes are usually
  * issued.
  */
-export async function applyPromoCode(_previous: PromoState, formData: FormData): Promise<PromoState> {
+export async function applyPromoCode(
+  _previous: PromoState,
+  formData: FormData
+): Promise<PromoState> {
+  const t = await actionT()
   const typed = String(formData.get("code") ?? "").trim()
   const cart = await retrieveCart("id,*promotions,completed_at")
   if (!cart || !typed || typed.length > 64) {
@@ -136,7 +158,12 @@ export async function removePromoCode(code: string): Promise<void> {
   const remaining = (cart.promotions ?? [])
     .map((promotion) => promotion.code)
     .filter((existing): existing is string => !!existing && existing !== code)
-  await sdk.store.cart.update(cart.id, { promo_codes: remaining }, {}, await authHeaders())
+  await sdk.store.cart.update(
+    cart.id,
+    { promo_codes: remaining },
+    {},
+    await authHeaders()
+  )
   revalidatePath("/[locale]/cart", "page")
   revalidatePath("/[locale]/checkout", "page")
 }

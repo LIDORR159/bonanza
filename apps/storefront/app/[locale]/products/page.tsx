@@ -1,28 +1,38 @@
 import type { Metadata } from "next"
 import { CatalogView } from "@/components/catalog/catalog-view"
 import { parseCatalogParams, type CatalogSearchParams } from "@/lib/catalog-params"
-import { t } from "@/lib/i18n"
+import { alternates, getT, withLocale } from "@/lib/i18n/server"
+
+// Filters, sorting and the page number come from the query string, so this
+// page is rendered for each request. The catalog data behind it is still
+// cached (lib/medusa/client.ts).
+export const dynamic = "force-dynamic"
 
 type Props = { searchParams: Promise<CatalogSearchParams> }
 
-const titleFor = (params: ReturnType<typeof parseCatalogParams>) =>
-  params.q
+function titleFor(params: ReturnType<typeof parseCatalogParams>) {
+  const t = getT()
+  return params.q
     ? t.catalog.searchResults(params.q)
     : params.onSale
       ? t.catalog.saleTitle
       : t.catalog.title
+}
 
-export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
+export const generateMetadata = withLocale(async function generateMetadata({
+  searchParams,
+}: Props): Promise<Metadata> {
   const params = parseCatalogParams(await searchParams)
   return {
     title: titleFor(params),
-    alternates: { canonical: "/products" },
+    alternates: alternates("/products"),
     // Search results and filtered views are endless variations of one page.
     robots: params.q ? { index: false, follow: true } : undefined,
   }
-}
+})
 
-export default async function ProductsPage({ searchParams }: Props) {
+export default withLocale(async function ProductsPage({ searchParams }: Props) {
+  const t = getT()
   const raw = await searchParams
   const title = titleFor(parseCatalogParams(raw))
   return (
@@ -33,4 +43,4 @@ export default async function ProductsPage({ searchParams }: Props) {
       searchParams={raw}
     />
   )
-}
+})
