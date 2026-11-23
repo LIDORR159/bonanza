@@ -10,6 +10,7 @@ import {
   type RateLimiterAbstract,
   type RateLimiterRes,
 } from "rate-limiter-flexible"
+import { sign, signaturesMatch } from "./signing"
 
 /**
  * Request rate limiting for the routes attackers probe: sign-in, registration,
@@ -66,13 +67,52 @@ function limiterFor(rule: Rule): RateLimiterAbstract {
   return limiter
 }
 
+const STOREFRONT_VISITOR_HEADER = "x-storefront-visitor"
+const VISITOR_MAX_AGE_MS = 5 * 60_000
+const IP_ADDRESS = /^[0-9a-fA-F:.]{3,45}$/
+
 /**
- * The visitor's address. Behind Cloudflare the socket peer is Cloudflare, so
- * the real address comes from CF-Connecting-IP. That header is trusted only
- * when TRUST_CLOUDFLARE_IP=true, which must be set only when the origin
- * accepts traffic from Cloudflare alone.
+ * The visitor a storefront request is made for.
+ *
+ * Shoppers never call the backend themselves: the storefront server does, so
+ * every sign-in would otherwise arrive from the storefront's own address and
+ * all shoppers would share one rate limit. The storefront therefore states
+ * the visitor's address in a header, `<time>|<address>|<signature>`, signed
+ * with the secret the two already share (REVALIDATE_SECRET). An unsigned,
+ * stale or malformed header is ignored, so nobody else can choose the address
+ * they are counted under.
+ */
+function visitorFromStorefront(req: MedusaRequest): string | null {
+  const secret = process.env.REVALIDATE_SECRET
+  const header = req.headers[STOREFRONT_VISITOR_HEADER]
+  if (!secret || typeof header !== "string") {
+    return null
+  }
+  const [timestamp, address, signature, ...extra] = header.split("|")
+  if (!timestamp || !address || !signature || extra.length || !IP_ADDRESS.test(address)) {
+    return null
+  }
+  const age = Date.now() - Number(timestamp)
+  if (!Number.isFinite(age) || Math.abs(age) > VISITOR_MAX_AGE_MS) {
+    return null
+  }
+  return signaturesMatch(sign(secret, `visitor|${timestamp}|${address}`), signature)
+    ? address
+    : null
+}
+
+/**
+ * The visitor's address: the one the storefront vouches for, when the request
+ * comes through it; otherwise the caller's own. Behind Cloudflare the socket
+ * peer is Cloudflare, so the caller's address comes from CF-Connecting-IP.
+ * That header is trusted only when TRUST_CLOUDFLARE_IP=true, which must be set
+ * only when the origin accepts traffic from Cloudflare alone.
  */
 export function clientIp(req: MedusaRequest): string {
+  const visitor = visitorFromStorefront(req)
+  if (visitor) {
+    return visitor
+  }
   if (process.env.TRUST_CLOUDFLARE_IP === "true") {
     const header = req.headers["cf-connecting-ip"]
     if (typeof header === "string" && header) {

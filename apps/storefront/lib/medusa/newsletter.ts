@@ -3,6 +3,7 @@
 import { isEmail } from "../format"
 import { actionT } from "../i18n/action"
 import { privateFetch } from "./client"
+import { visitorHeaders } from "./visitor"
 
 export type NewsletterState = { status: "idle" | "success" | "error"; message?: string }
 
@@ -22,6 +23,7 @@ export async function subscribeToNewsletter(
     await privateFetch("/store/newsletter", {
       method: "POST",
       body: { email, consent: true, source: String(formData.get("source") ?? "home") },
+      headers: await visitorHeaders(),
     })
     return { status: "success", message: t.newsletter.success }
   } catch (error) {

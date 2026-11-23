@@ -80,6 +80,45 @@ test.describe("home page", () => {
     ).toBeInViewport()
   })
 
+  test("the story sits right below the hero, with the photograph of the shop", async ({
+    page,
+    request,
+  }) => {
+    const { sections } = await store<{
+      sections: {
+        key: string
+        type: string
+        title: string
+        subtitle: string
+        body: string
+      }[]
+    }>(request, "/store/cms/homepage")
+    const story = sections.find((section) => section.key === "about")!
+    // Only the thin hours/address/phone strip stands between the hero and the story.
+    expect(sections.slice(0, 3).map((section) => section.type)).toEqual([
+      "hero",
+      "info_strip",
+      "about",
+    ])
+
+    await page.goto("/")
+    const about = page.locator("#about")
+    await expect(about.getByRole("heading", { level: 2 })).toHaveText(story.title)
+    await expect(about.getByText(story.subtitle, { exact: true })).toBeVisible()
+    const paragraphs = story.body.split(/\n\s*\n/)
+    expect(paragraphs.length).toBe(2)
+    await expect(
+      about.locator("p").filter({ hasText: paragraphs[1]!.slice(0, 30) })
+    ).toBeVisible()
+
+    const photo = about.locator("img")
+    await photo.scrollIntoViewIfNeeded()
+    await expect(photo).toBeVisible()
+    await expect
+      .poll(() => photo.evaluate((img: HTMLImageElement) => img.naturalWidth))
+      .toBeGreaterThan(0)
+  })
+
   test("the header carries the booking button and the approved menu", async ({
     page,
   }) => {
@@ -247,6 +286,27 @@ test.describe("gallery page", () => {
 })
 
 test.describe("floating buttons", () => {
+  test("booking stays in the bottom-right corner, in every language", async ({
+    page,
+  }) => {
+    for (const [path, label] of [
+      ["/gallery", he.booking.cta],
+      ["/en/products", en.booking.cta],
+      ["/ar", ar.booking.cta],
+    ] as const) {
+      await page.goto(path)
+      const booking = page.locator("a.fixed[data-booking-link]")
+      await expect(booking).toContainText(label)
+      await expect(booking).toHaveAttribute("href", BOOKING)
+      await expect(booking).toHaveAttribute("target", "_blank")
+      await page.evaluate(() => window.scrollTo({ top: 900, behavior: "instant" }))
+      const box = (await booking.boundingBox())!
+      const viewport = page.viewportSize()!
+      expect(box.x, path).toBeGreaterThan(viewport.width / 2)
+      expect(box.y, path).toBeGreaterThan(viewport.height * 0.8)
+    }
+  })
+
   test("WhatsApp and accessibility stay in the bottom-left corner", async ({ page }) => {
     await page.goto("/products")
     const whatsapp = page.getByRole("link", { name: he.contact.whatsappLabel })

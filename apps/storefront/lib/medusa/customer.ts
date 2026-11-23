@@ -5,7 +5,7 @@ import { redirect } from "next/navigation"
 import { isEmail, isIsraeliPostalCode, normalizeIsraeliPhone } from "../format"
 import type { Dictionary } from "../i18n"
 import { actionHref, actionT } from "../i18n/action"
-import { sdk } from "./client"
+import { privateFetch, sdk } from "./client"
 import {
   authHeaders,
   clearAuthToken,
@@ -13,6 +13,7 @@ import {
   getCartId,
   setAuthToken,
 } from "./cookies"
+import { visitorHeaders } from "./visitor"
 
 /**
  * Customer accounts, built on Medusa's own email-and-password authentication.
@@ -45,6 +46,23 @@ const authError = (error: unknown, t: Dictionary): string => {
   return t.common.genericError
 }
 
+/**
+ * A call to the customer sign-in routes. These go to the routes directly, not
+ * through the SDK's `auth` helpers, because each must name the visitor it is
+ * made for (see visitor.ts) and the helpers cannot carry extra headers.
+ */
+async function emailpass<T = unknown>(
+  path: "" | "/register" | "/reset-password" | "/update",
+  body: Record<string, unknown>,
+  extraHeaders: Record<string, string> = {}
+): Promise<T> {
+  return privateFetch<T>(`/auth/customer/emailpass${path}`, {
+    method: "POST",
+    body,
+    headers: { ...(await visitorHeaders()), ...extraHeaders },
+  })
+}
+
 /** A guest cart becomes the customer's cart when they sign in. */
 async function claimCart() {
   const cartId = await getCartId()
@@ -66,8 +84,8 @@ export async function login(
     return { status: "error", message: t.account.errors.invalidCredentials }
   }
   try {
-    const token = await sdk.auth.login("customer", "emailpass", { email, password })
-    if (typeof token !== "string") {
+    const { token } = await emailpass<{ token?: string }>("", { email, password })
+    if (!token) {
       return { status: "error", message: t.common.genericError }
     }
     await setAuthToken(token)
@@ -104,17 +122,17 @@ export async function register(
   try {
     // 1. Create the login. 2. Create the customer it belongs to. 3. Sign in
     // again, because only a token issued after step 2 carries the customer.
-    const registrationToken = await sdk.auth.register("customer", "emailpass", {
+    const { token: registrationToken } = await emailpass<{ token: string }>("/register", {
       email,
       password,
     })
     await sdk.store.customer.create(
       { email, first_name: firstName, last_name: lastName, phone: phone ?? undefined },
       {},
-      { authorization: `Bearer ${registrationToken}` }
+      { ...(await visitorHeaders()), authorization: `Bearer ${registrationToken}` }
     )
-    const token = await sdk.auth.login("customer", "emailpass", { email, password })
-    if (typeof token !== "string") {
+    const { token } = await emailpass<{ token?: string }>("", { email, password })
+    if (!token) {
       return { status: "error", message: t.common.genericError }
     }
     await setAuthToken(token)
@@ -155,7 +173,8 @@ export async function requestPasswordReset(
     return { status: "error", fieldErrors: { email: t.checkout.errors.email } }
   }
   try {
-    await sdk.auth.resetPassword("customer", "emailpass", { identifier: email })
+    // Answers 201 with no body.
+    await emailpass("/reset-password", { identifier: email }, { accept: "text/plain" })
   } catch (error) {
     if ((error as { status?: number }).status === 429) {
       return { status: "error", message: t.account.errors.tooManyAttempts }
@@ -188,7 +207,7 @@ export async function resetPassword(
     return { status: "error", message: t.account.resetInvalid }
   }
   try {
-    await sdk.auth.updateProvider("customer", "emailpass", { email, password }, token)
+    await emailpass("/update", { email, password }, { authorization: `Bearer ${token}` })
   } catch (error) {
     return {
       status: "error",
