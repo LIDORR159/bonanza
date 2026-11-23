@@ -1,13 +1,15 @@
 import type { StoreNavigation } from "@bonanza/types"
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { isLive, toNavigationTree } from "../../../../lib/content"
+import { listLocalized } from "../../../../lib/localized"
 import { CMS_MODULE } from "../../../../modules/cms"
 import type CmsModuleService from "../../../../modules/cms/service"
 
 export const GET = async (req: MedusaRequest, res: MedusaResponse) => {
   const cms: CmsModuleService = req.scope.resolve(CMS_MODULE)
   const [items, pages] = await Promise.all([
-    cms.listNavigationItems({}, { order: { rank: "ASC" }, take: 500 }),
+    listLocalized(req, "navigation_item", { order: { rank: "ASC" }, take: 500 }),
+    // Only slugs are needed here, and those are the same in every language.
     cms.listContentPages(
       { status: "published" },
       { select: ["slug", "status", "publish_at"], take: 500 }

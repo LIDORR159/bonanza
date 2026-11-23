@@ -1,7 +1,6 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { toStoreSettings } from "../../../../lib/content"
-import { CMS_MODULE } from "../../../../modules/cms"
-import type CmsModuleService from "../../../../modules/cms/service"
+import { listLocalized } from "../../../../lib/localized"
 
 /** What the storefront shows before anyone has saved the settings in the admin. */
 const DEFAULTS = {
@@ -13,7 +12,6 @@ const DEFAULTS = {
 }
 
 export const GET = async (req: MedusaRequest, res: MedusaResponse) => {
-  const cms: CmsModuleService = req.scope.resolve(CMS_MODULE)
-  const [settings] = await cms.listSiteSettings({}, { take: 1 })
+  const [settings] = await listLocalized(req, "site_setting", { take: 1 })
   res.json({ settings: toStoreSettings(settings ?? DEFAULTS) })
 }

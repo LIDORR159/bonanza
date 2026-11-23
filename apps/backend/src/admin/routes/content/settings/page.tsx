@@ -12,9 +12,22 @@ const PATH = "/admin/cms/settings"
 const SAVED_FIELDS = [
   "store_name", "tagline", "title_template", "default_meta_title", "default_meta_description",
   "default_og_image_url", "contact_phone", "contact_whatsapp", "contact_email", "address",
-  "opening_hours", "instagram_url", "facebook_url", "tiktok_url", "youtube_url",
-  "newsletter_enabled", "free_shipping_threshold",
+  "opening_hours", "booking_url", "map_embed_url", "map_link_url", "google_reviews_url",
+  "google_rating", "google_review_count", "instagram_url", "facebook_url", "tiktok_url",
+  "youtube_url", "newsletter_enabled", "free_shipping_threshold",
 ] as const
+
+/**
+ * Google Maps hands out a whole `<iframe>` snippet. Only its `src` address is
+ * stored, so a pasted snippet is reduced to that.
+ */
+const embedSrc = (value: unknown) => {
+  if (typeof value !== "string") {
+    return value
+  }
+  const match = value.match(/<iframe[^>]*\ssrc=["']([^"']+)["']/i)
+  return match ? match[1] : value
+}
 
 const DEFAULTS = {
   store_name: "BONANZA",
@@ -50,7 +63,13 @@ const SiteSettingsPage = () => {
     { name: "contact_whatsapp", label: s("contactWhatsapp"), ltr: true },
     { name: "contact_email", label: s("contactEmail"), ltr: true },
     { name: "address", label: s("address"), type: "textarea" },
-    { name: "opening_hours", label: s("openingHours"), type: "textarea" },
+    { name: "opening_hours", label: s("openingHours"), hint: s("openingHoursHint"), type: "textarea" },
+    { name: "booking_url", label: s("bookingUrl"), hint: s("bookingUrlHint"), type: "url" },
+    { name: "map_embed_url", label: s("mapEmbedUrl"), hint: s("mapEmbedUrlHint"), type: "url" },
+    { name: "map_link_url", label: s("mapLinkUrl"), hint: s("mapLinkUrlHint"), type: "url" },
+    { name: "google_reviews_url", label: s("googleReviewsUrl"), hint: s("googleReviewsUrlHint"), type: "url" },
+    { name: "google_rating", label: s("googleRating"), hint: s("googleRatingHint"), type: "number" },
+    { name: "google_review_count", label: s("googleReviewCount"), type: "number" },
     { name: "instagram_url", label: "Instagram", type: "url" },
     { name: "facebook_url", label: "Facebook", type: "url" },
     { name: "tiktok_url", label: "TikTok", type: "url" },
@@ -73,7 +92,8 @@ const SiteSettingsPage = () => {
           className="flex max-w-2xl flex-col gap-6 px-6 py-6"
           onSubmit={(event) => {
             event.preventDefault()
-            save.mutate({ data: clean(pick(values, SAVED_FIELDS)) })
+            const data = clean(pick(values, SAVED_FIELDS))
+            save.mutate({ data: { ...data, map_embed_url: embedSrc(data.map_embed_url) } })
           }}
         >
           <FormFields

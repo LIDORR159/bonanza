@@ -5,7 +5,7 @@ import {
 } from "@medusajs/framework/workflows-sdk"
 import { emitEventStep } from "@medusajs/medusa/core-flows"
 import { recordActivityStep } from "../activity-log/steps"
-import { CMS_CHANGED_EVENT } from "./entities"
+import { CMS_CHANGED_EVENT, summaryOf } from "./entities"
 import { saveCmsRecordStep, type SaveCmsRecordInput } from "./steps"
 
 /**
@@ -23,11 +23,7 @@ export const saveCmsRecordWorkflow = createWorkflow(
       action: `cms.${input.entity}.${saved.created ? "created" : "updated"}`,
       resource_type: input.entity,
       resource_id: saved.record.id as string,
-      summary: (saved.record.title ??
-        saved.record.label ??
-        saved.record.key ??
-        saved.record.store_name ??
-        null) as string | null,
+      summary: summaryOf(saved.record),
       // Field names only. Content itself stays out of the log.
       details: { fields: Object.keys(input.data) },
     }))

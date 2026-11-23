@@ -6,6 +6,7 @@ import {
   NAVIGATION_MENUS,
   PUBLISH_STATUSES,
   RESERVED_PAGE_SLUGS,
+  REVIEW_SOURCES,
 } from "../modules/cms/constants"
 
 /**
@@ -37,7 +38,18 @@ const safeUrl = z
   .max(2048)
   .refine(isSafeUrl, "Must be a path starting with / or an http(s) URL")
 
+/**
+ * An address on another site: a booking page, an Instagram profile, a map.
+ * These open in a new tab or load in a frame, so a site-relative path makes no
+ * sense for them and only absolute http(s) URLs are accepted.
+ */
+const externalUrl = safeUrl.refine(
+  (value) => !value.startsWith("/"),
+  "Must be a full address starting with https://"
+)
+
 const text = (max: number) => z.string().trim().max(max)
+const rank = z.number().int().min(0).max(100000).optional()
 const slug = z
   .string()
   .trim()
@@ -162,6 +174,12 @@ export const UpdateSiteSettings = z
     contact_email: z.string().trim().email().max(254).nullish(),
     address: text(300).nullish(),
     opening_hours: text(500).nullish(),
+    booking_url: externalUrl.nullish(),
+    map_embed_url: externalUrl.nullish(),
+    map_link_url: externalUrl.nullish(),
+    google_reviews_url: externalUrl.nullish(),
+    google_rating: z.number().min(1).max(5).nullish(),
+    google_review_count: z.number().int().min(0).max(10_000_000).nullish(),
     instagram_url: safeUrl.nullish(),
     facebook_url: safeUrl.nullish(),
     tiktok_url: safeUrl.nullish(),
@@ -171,6 +189,63 @@ export const UpdateSiteSettings = z
   })
   .partial()
   .strict()
+
+const serviceGroupFields = {
+  title: text(120).min(1),
+  note: text(300).nullish(),
+  rank,
+  status: z.enum(PUBLISH_STATUSES).optional(),
+}
+export const CreateServiceGroup = z.object(serviceGroupFields).strict()
+export const UpdateServiceGroup = z.object(serviceGroupFields).partial().strict()
+
+const serviceItemFields = {
+  group_id: z.string().min(1),
+  name: text(120).min(1),
+  description: text(300).nullish(),
+  // Whole shekels, VAT included.
+  price: z.number().int().min(0).max(1_000_000).nullish(),
+  price_note: text(60).nullish(),
+  duration_minutes: z.number().int().min(1).max(24 * 60).nullish(),
+  rank,
+  is_visible: z.boolean().optional(),
+}
+export const CreateServiceItem = z.object(serviceItemFields).strict()
+export const UpdateServiceItem = z.object(serviceItemFields).partial().strict()
+
+const galleryItemFields = {
+  image_url: safeUrl,
+  alt: text(300).nullish(),
+  caption: text(200).nullish(),
+  is_featured: z.boolean().optional(),
+  rank,
+  status: z.enum(PUBLISH_STATUSES).optional(),
+}
+export const CreateGalleryItem = z.object(galleryItemFields).strict()
+export const UpdateGalleryItem = z.object(galleryItemFields).partial().strict()
+
+const teamMemberFields = {
+  name: text(120).min(1),
+  role: text(120).nullish(),
+  photo_url: safeUrl.nullish(),
+  instagram_url: externalUrl.nullish(),
+  rank,
+  status: z.enum(PUBLISH_STATUSES).optional(),
+}
+export const CreateTeamMember = z.object(teamMemberFields).strict()
+export const UpdateTeamMember = z.object(teamMemberFields).partial().strict()
+
+const reviewFields = {
+  author_name: text(120).min(1),
+  rating: z.number().int().min(1).max(5),
+  text: text(2000).min(1),
+  date_label: text(60).nullish(),
+  source: z.enum(REVIEW_SOURCES).optional(),
+  rank,
+  status: z.enum(PUBLISH_STATUSES).optional(),
+}
+export const CreateReview = z.object(reviewFields).strict()
+export const UpdateReview = z.object(reviewFields).partial().strict()
 
 export const Reorder = z.object({ ids: z.array(z.string().min(1)).min(1).max(500) }).strict()
 

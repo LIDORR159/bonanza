@@ -25,17 +25,27 @@ import type BrandModuleService from "../modules/brand/service"
 import { CMS_MODULE } from "../modules/cms"
 import type CmsModuleService from "../modules/cms/service"
 import { DEMO_BRANDS, DEMO_OPTIONS, DEMO_PRODUCTS } from "./demo-catalog"
+import { seedDemoSite } from "./demo-site"
+import {
+  BRAND_TRANSLATIONS,
+  PAGE_BODY_TRANSLATIONS,
+  PRODUCT_TITLES,
+} from "./demo-translations"
 import seedContent from "./seed-content"
+import { seedTranslations, type Translated } from "./translations"
 
 /**
- * Demo data for development and testing: invented brands and products with
+ * Demo data for development and testing: a sample price list, gallery, team
+ * and reviews, placeholder contact details, invented brands and products with
  * generated images, placeholder shipping prices, a sale, a discount code,
- * banners and placeholder page text. It also attaches the development payment
- * provider to the region.
+ * banners and placeholder page text, with draft English and Arabic
+ * translations. It also attaches the development payment provider to the
+ * region.
  *
  *   pnpm exec medusa exec ./src/scripts/seed-demo.ts
  *
- * Refuses to run when APP_ENV=production. Does nothing if products already exist.
+ * Refuses to run when APP_ENV=production. Each part is loaded once: the site
+ * content while its lists are empty, the catalog while there are no products.
  */
 
 const FREE_SHIPPING_THRESHOLD = 399
@@ -72,6 +82,9 @@ export default async function seedDemo(args: ExecArgs) {
 
   // Categories, tags, home page sections, menus and draft pages.
   await seedContent(args)
+
+  // Sample price list, gallery, team, reviews and contact details.
+  await seedDemoSite(container)
 
   const { data: existingProducts } = await query.graph({
     entity: "product",
@@ -141,9 +154,18 @@ export default async function seedDemo(args: ExecArgs) {
     rank: index * 10,
   })).filter((brand) => !brandId.has(brand.handle))
   if (missingBrands.length) {
-    for (const brand of await brands.createBrands(missingBrands)) {
+    const createdBrands = await brands.createBrands(missingBrands)
+    for (const brand of createdBrands) {
       brandId.set(brand.handle, brand.id)
     }
+    await seedTranslations(
+      container,
+      "brand",
+      createdBrands.map((brand) => ({
+        id: brand.id,
+        translations: BRAND_TRANSLATIONS[brand.handle],
+      }))
+    )
     logger.info(`Created ${missingBrands.length} brands.`)
   }
 
@@ -209,6 +231,16 @@ export default async function seedDemo(args: ExecArgs) {
       }),
     },
   })
+  await seedTranslations(
+    container,
+    "product",
+    products.flatMap((product) => {
+      const titles = PRODUCT_TITLES[product.handle]
+      return titles
+        ? [{ id: product.id, translations: { en: { title: titles[0] }, ar: { title: titles[1] } } }]
+        : []
+    })
+  )
   logger.info(`Created ${products.length} products.`)
 
   await link.create(
@@ -364,7 +396,7 @@ export default async function seedDemo(args: ExecArgs) {
   // ── Content ───────────────────────────────────────────────────────────────
   const now = Date.now()
   const day = 24 * 60 * 60 * 1000
-  await cms.createBanners([
+  const banners = await cms.createBanners([
     {
       placement: "announcement",
       title: `משלוח חינם בהזמנה מעל ‎₪${FREE_SHIPPING_THRESHOLD}`,
@@ -412,17 +444,57 @@ export default async function seedDemo(args: ExecArgs) {
       rank: 30,
     },
   ])
+  // The three banners that show, in the order created above.
+  const bannerTranslations: Translated[] = [
+    {
+      en: { title: `Free shipping on orders over ₪${FREE_SHIPPING_THRESHOLD}` },
+      ar: { title: `شحن مجاني للطلبات فوق ₪${FREE_SHIPPING_THRESHOLD}` },
+    },
+    {
+      en: {
+        title: "Launch sale",
+        subtitle: "Special prices on selected clippers, trimmers and styling products.",
+        cta_label: "All deals",
+      },
+      ar: {
+        title: "عرض الافتتاح",
+        subtitle: "أسعار خاصة على ماكينات قص وتحديد ومنتجات تصفيف مختارة.",
+        cta_label: "كل العروض",
+      },
+    },
+    {
+      en: {
+        title: "Setting up a new station?",
+        subtitle: "Chairs, dryers and tool cases for professional barbers.",
+        cta_label: "Professional equipment",
+      },
+      ar: {
+        title: "تجهّزون محطة جديدة؟",
+        subtitle: "كراسٍ، مجففات وحقائب أدوات للحلاقين المحترفين.",
+        cta_label: "إلى المعدات الاحترافية",
+      },
+    },
+  ]
+  await seedTranslations(
+    container,
+    "banner",
+    bannerTranslations.map((translations, index) => ({ id: banners[index].id, translations }))
+  )
 
   const pages = await cms.listContentPages({}, { take: 500 })
+  const emptyPages = pages.filter((page) => PAGE_BODIES[page.slug] && !page.body)
   await cms.updateContentPages(
-    pages
-      .filter((page) => PAGE_BODIES[page.slug] && !page.body)
-      .map((page) => ({
-        id: page.id,
-        body: PAGE_BODIES[page.slug],
-        status: "published" as const,
-        published_at: new Date(),
-      }))
+    emptyPages.map((page) => ({
+      id: page.id,
+      body: PAGE_BODIES[page.slug],
+      status: "published" as const,
+      published_at: new Date(),
+    }))
+  )
+  await seedTranslations(
+    container,
+    "content_page",
+    emptyPages.map((page) => ({ id: page.id, translations: PAGE_BODY_TRANSLATIONS[page.slug] }))
   )
   if (!pages.some((page) => page.slug === "draft-example")) {
     await cms.createContentPages({

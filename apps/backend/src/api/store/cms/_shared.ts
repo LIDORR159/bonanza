@@ -14,3 +14,9 @@ export function isPreviewRequest(req: MedusaRequest): boolean {
   )
   return claims?.scope === "cms-preview"
 }
+
+/** `?limit=` as a whole number between 1 and `max`; `max` when absent or invalid. */
+export function limitParam(req: MedusaRequest, max: number): number {
+  const limit = Math.floor(Number(req.query.limit))
+  return Number.isFinite(limit) && limit >= 1 ? Math.min(limit, max) : max
+}

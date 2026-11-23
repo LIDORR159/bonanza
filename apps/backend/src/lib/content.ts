@@ -4,9 +4,15 @@ import type {
   StoreBrand,
   StoreContentPage,
   StoreContentPageSummary,
+  StoreGalleryItem,
   StoreHomepageSection,
   StoreNavigationItem,
+  StoreReview,
+  StoreReviewSummary,
+  StoreServiceGroup,
+  StoreServiceItem,
   StoreSiteSettings,
+  StoreTeamMember,
 } from "@bonanza/types"
 
 /**
@@ -153,12 +159,73 @@ export const toStoreSettings = (settings: Row): StoreSiteSettings => ({
   contact_email: settings.contact_email ?? null,
   address: settings.address ?? null,
   opening_hours: settings.opening_hours ?? null,
+  booking_url: settings.booking_url ?? null,
+  map_embed_url: settings.map_embed_url ?? null,
+  map_link_url: settings.map_link_url ?? null,
+  google_reviews_url: settings.google_reviews_url ?? null,
+  google_rating: settings.google_rating ?? null,
+  google_review_count: settings.google_review_count ?? null,
   instagram_url: settings.instagram_url ?? null,
   facebook_url: settings.facebook_url ?? null,
   tiktok_url: settings.tiktok_url ?? null,
   youtube_url: settings.youtube_url ?? null,
   newsletter_enabled: settings.newsletter_enabled,
   free_shipping_threshold: settings.free_shipping_threshold ?? null,
+})
+
+const toStoreServiceItem = (item: Row): StoreServiceItem => ({
+  id: item.id,
+  name: item.name,
+  description: item.description ?? null,
+  price: item.price ?? null,
+  price_note: item.price_note ?? null,
+  duration_minutes: item.duration_minutes ?? null,
+})
+
+/**
+ * One card of the price list with its items in display order. Hidden items are
+ * left out unless `includeHidden` is set, which a content preview does.
+ */
+export const toStoreServiceGroup = (group: Row, includeHidden = false): StoreServiceGroup => ({
+  id: group.id,
+  title: group.title,
+  note: group.note ?? null,
+  items: ((group.items ?? []) as Row[])
+    .filter((item) => !item.deleted_at && (includeHidden || item.is_visible))
+    .sort((a, b) => a.rank - b.rank)
+    .map(toStoreServiceItem),
+})
+
+export const toStoreGalleryItem = (item: Row): StoreGalleryItem => ({
+  id: item.id,
+  image_url: item.image_url,
+  alt: item.alt ?? null,
+  caption: item.caption ?? null,
+  is_featured: item.is_featured,
+})
+
+export const toStoreTeamMember = (member: Row): StoreTeamMember => ({
+  id: member.id,
+  name: member.name,
+  role: member.role ?? null,
+  photo_url: member.photo_url ?? null,
+  instagram_url: member.instagram_url ?? null,
+})
+
+export const toStoreReview = (review: Row): StoreReview => ({
+  id: review.id,
+  author_name: review.author_name,
+  rating: review.rating,
+  text: review.text,
+  date_label: review.date_label ?? null,
+  source: review.source,
+})
+
+/** The overall score shown above the reviews. It is entered in the site settings. */
+export const toStoreReviewSummary = (settings: Row | undefined): StoreReviewSummary => ({
+  rating: settings?.google_rating ?? null,
+  count: settings?.google_review_count ?? null,
+  url: settings?.google_reviews_url ?? null,
 })
 
 export const toStoreBrand = (brand: Row): StoreBrand => ({

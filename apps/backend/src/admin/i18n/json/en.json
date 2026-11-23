@@ -6,7 +6,12 @@
       "banners": "Banners",
       "pages": "Pages",
       "navigation": "Menus",
-      "settings": "Site settings"
+      "settings": "Site settings",
+      "services": "Price list",
+      "gallery": "Gallery",
+      "team": "Team",
+      "reviews": "Reviews",
+      "translations": "Translations"
     },
     "common": {
       "add": "Add",
@@ -95,7 +100,12 @@
         "brands": "Brands",
         "academy": "Academy",
         "editorial": "Text block",
-        "newsletter": "Newsletter sign-up"
+        "newsletter": "Newsletter sign-up",
+        "info_strip": "Info strip (hours, address, phone)",
+        "about": "About",
+        "pricing": "Price list",
+        "gallery": "Gallery",
+        "reviews": "Reviews"
       },
       "sources": {
         "collection": "A collection",
@@ -104,7 +114,8 @@
         "brand": "A brand",
         "newest": "Newest products",
         "on_sale": "Products on sale"
-      }
+      },
+      "typeHint": "The info strip shows the hours, address and phone from Site settings. The price list, gallery and reviews sections show what their own tabs hold."
     },
     "banners": {
       "heading": "Banners",
@@ -136,7 +147,7 @@
     },
     "settings": {
       "heading": "Site settings",
-      "description": "Name, search defaults, contact details and social links.",
+      "description": "Name, search defaults, contact details, booking, map, reviews and social links.",
       "storeName": "Store name",
       "tagline": "Tagline",
       "titleTemplate": "Page title pattern",
@@ -151,7 +162,19 @@
       "openingHours": "Opening hours",
       "newsletterEnabled": "Newsletter sign-up",
       "freeShippingThreshold": "Free shipping from (₪)",
-      "freeShippingHint": "Shown to shoppers only. The actual shipping price is set on the shipping option."
+      "freeShippingHint": "Shown to shoppers only. The actual shipping price is set on the shipping option.",
+      "openingHoursHint": "One row per line, written: days | hours. For example: Sunday–Thursday | 09:00–20:00. A line without | is shown as a note.",
+      "bookingUrl": "Booking link",
+      "bookingUrlHint": "Where every \"Book an appointment\" button leads. A full address starting with https://.",
+      "mapEmbedUrl": "Map to embed",
+      "mapEmbedUrlHint": "In Google Maps: Share → Embed a map → Copy HTML, and paste it here. Only the map's address is kept.",
+      "mapLinkUrl": "Map link",
+      "mapLinkUrlHint": "Opens the location in a maps app. In Google Maps: Share → Copy link.",
+      "googleReviewsUrl": "Google reviews link",
+      "googleReviewsUrlHint": "The page that lists all the reviews of the business.",
+      "googleRating": "Google rating",
+      "googleRatingHint": "The overall score from 1 to 5, for example 4.9.",
+      "googleReviewCount": "Number of Google reviews"
     },
     "brands": {
       "heading": "Brands",
@@ -173,6 +196,55 @@
       "action": "Action",
       "what": "Record",
       "system": "System"
+    },
+    "services": {
+      "heading": "Price list",
+      "description": "Services and prices, in groups. A group appears on the site once it is published; a service can be hidden on its own.",
+      "addGroup": "Add group",
+      "addItem": "Add service",
+      "noItems": "No services in this group yet.",
+      "group": "Group",
+      "note": "Note",
+      "noteHint": "A line under the group's title. Optional.",
+      "descriptionHint": "One short line under the name. Optional.",
+      "price": "Price (₪)",
+      "priceHint": "Whole shekels, VAT included. Leave empty to show only the price note.",
+      "priceNote": "Price note",
+      "priceNoteHint": "Shown before the price (\"from\") or instead of it (\"by quote\"). Optional.",
+      "duration": "Duration (minutes)"
+    },
+    "gallery": {
+      "heading": "Gallery",
+      "description": "The photos of the gallery page. Photos marked for the home page also appear there. Only published photos are shown.",
+      "add": "Add photo",
+      "caption": "Caption",
+      "captionHint": "A short line shown with the photo. Optional."
+    },
+    "team": {
+      "heading": "Team",
+      "description": "The barbers shown on the gallery page, each with a link to their Instagram.",
+      "add": "Add team member",
+      "role": "Role",
+      "roleHint": "For example: Barber, Owner. Optional.",
+      "photo": "Photo",
+      "instagram": "Instagram link",
+      "instagramHint": "The full address of the profile, starting with https://."
+    },
+    "reviews": {
+      "heading": "Reviews",
+      "description": "Reviews are copied in by hand, exactly as the customer wrote them. The overall score and the link to all reviews are in Site settings.",
+      "add": "Add review",
+      "authorName": "Customer name",
+      "rating": "Rating",
+      "text": "Review",
+      "textHint": "The customer's own words, unchanged.",
+      "dateLabel": "Date text",
+      "dateLabelHint": "Free text such as \"a month ago\". Optional.",
+      "source": "Source",
+      "sources": {
+        "google": "Google",
+        "other": "Other"
+      }
     }
   }
 }

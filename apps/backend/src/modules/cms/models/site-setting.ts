@@ -16,7 +16,21 @@ const SiteSetting = model.define("site_setting", {
   contact_whatsapp: model.text().nullable(),
   contact_email: model.text().nullable(),
   address: model.text().translatable().nullable(),
+  /**
+   * One row per line, written `days | hours`. A line without `|` is shown as
+   * a note.
+   */
   opening_hours: model.text().translatable().nullable(),
+  /** Where "book an appointment" buttons lead: an external booking page. */
+  booking_url: model.text().nullable(),
+  /** `src` of a Google Maps embed. */
+  map_embed_url: model.text().nullable(),
+  /** Link that opens the location in a maps app. */
+  map_link_url: model.text().nullable(),
+  google_reviews_url: model.text().nullable(),
+  /** The overall Google score, e.g. 4.9. Entered by hand. */
+  google_rating: model.float().nullable(),
+  google_review_count: model.number().nullable(),
   instagram_url: model.text().nullable(),
   facebook_url: model.text().nullable(),
   tiktok_url: model.text().nullable(),

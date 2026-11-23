@@ -5,7 +5,7 @@ import {
 } from "@medusajs/framework/workflows-sdk"
 import { emitEventStep } from "@medusajs/medusa/core-flows"
 import { recordActivityStep } from "../activity-log/steps"
-import { CMS_CHANGED_EVENT, type CmsEntity } from "./entities"
+import { CMS_CHANGED_EVENT, summaryOf, type CmsEntity } from "./entities"
 import { deleteCmsRecordStep } from "./steps"
 
 type Input = { entity: CmsEntity; id: string; actor_id?: string | null }
@@ -21,7 +21,7 @@ export const deleteCmsRecordWorkflow = createWorkflow(
       action: `cms.${input.entity}.deleted`,
       resource_type: input.entity,
       resource_id: input.id,
-      summary: (deleted.title ?? deleted.label ?? deleted.key ?? null) as string | null,
+      summary: summaryOf(deleted),
       details: null,
     }))
     recordActivityStep(activity)

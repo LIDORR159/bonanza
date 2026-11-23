@@ -25,12 +25,22 @@ const RESPONSE_KEYS: Record<CmsEntity, { one: string; many: string }> = {
   content_page: { one: "page", many: "pages" },
   navigation_item: { one: "item", many: "items" },
   site_setting: { one: "settings", many: "settings" },
+  service_group: { one: "service_group", many: "service_groups" },
+  service_item: { one: "service_item", many: "service_items" },
+  gallery_item: { one: "gallery_item", many: "gallery_items" },
+  team_member: { one: "team_member", many: "team_members" },
+  review: { one: "review", many: "reviews" },
 }
 
 /** A field that must be unique among records that are not deleted. */
 const UNIQUE_FIELD: Partial<Record<CmsEntity, string>> = {
   homepage_section: "key",
   content_page: "slug",
+}
+
+/** A field that must name an existing record of another type. */
+const PARENT: Partial<Record<CmsEntity, { field: string; entity: CmsEntity }>> = {
+  service_item: { field: "group_id", entity: "service_group" },
 }
 
 const cmsOf = (req: MedusaRequest) => req.scope.resolve(CMS_MODULE) as unknown as CmsMethods
@@ -56,6 +66,17 @@ async function assertUnique(req: MedusaRequest, entity: CmsEntity, data: Row, id
       `Another record already uses ${field} "${String(data[field])}".`
     )
   }
+}
+
+/** Answers 404 when the record a new or moved record points to does not exist. */
+async function assertParentExists(req: MedusaRequest, entity: CmsEntity, data: Row) {
+  const parent = PARENT[entity]
+  if (!parent || data[parent.field] === undefined) {
+    return
+  }
+  await cmsOf(req)[`retrieve${CMS_ENTITIES[parent.entity].singular}`](data[parent.field], {
+    select: ["id"],
+  })
 }
 
 export const listRecords =
@@ -87,6 +108,7 @@ export const createRecord =
   (entity: CmsEntity) =>
   async (req: AuthenticatedMedusaRequest<Row>, res: MedusaResponse) => {
     await assertUnique(req, entity, req.validatedBody)
+    await assertParentExists(req, entity, req.validatedBody)
     const { result } = await saveCmsRecordWorkflow(req.scope).run({
       input: { entity, data: req.validatedBody, actor_id: req.auth_context?.actor_id },
     })
@@ -97,6 +119,7 @@ export const updateRecord =
   (entity: CmsEntity) =>
   async (req: AuthenticatedMedusaRequest<Row>, res: MedusaResponse) => {
     await assertUnique(req, entity, req.validatedBody, req.params.id)
+    await assertParentExists(req, entity, req.validatedBody)
     const { result } = await saveCmsRecordWorkflow(req.scope).run({
       input: {
         entity,

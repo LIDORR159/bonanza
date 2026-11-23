@@ -4,10 +4,16 @@ import { NavLink } from "react-router-dom"
 
 const TABS = [
   { to: "/content", key: "homepage", end: true },
+  { to: "/content/services", key: "services" },
+  { to: "/content/gallery", key: "gallery" },
+  { to: "/content/team", key: "team" },
+  { to: "/content/reviews", key: "reviews" },
   { to: "/content/banners", key: "banners" },
   { to: "/content/pages", key: "pages" },
   { to: "/content/navigation", key: "navigation" },
   { to: "/content/settings", key: "settings" },
+  // Medusa's own screen: English and Arabic text for everything above.
+  { to: "/settings/translations", key: "translations" },
 ] as const
 
 /** The row of links shared by every "Site content" screen. */

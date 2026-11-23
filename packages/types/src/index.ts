@@ -20,6 +20,16 @@ export type HomepageSectionType =
   | "academy"
   | "editorial"
   | "newsletter"
+  /** Opening hours, address and phone in one thin strip under the hero. */
+  | "info_strip"
+  /** The shop's story beside a photograph. */
+  | "about"
+  /** The service price list (`/store/cms/services`). */
+  | "pricing"
+  /** A few featured works, linking to the gallery page. */
+  | "gallery"
+  /** Customer reviews (`/store/cms/reviews`). */
+  | "reviews"
 
 /** Where a product rail takes its products from. */
 export type ProductSource =
@@ -143,7 +153,20 @@ export interface StoreSiteSettings {
   contact_whatsapp: string | null
   contact_email: string | null
   address: string | null
+  /**
+   * One row per line, written `days | hours`, for example
+   * `Sunday–Thursday | 09:00–20:00`. A line without `|` is shown as a note.
+   */
   opening_hours: string | null
+  /** Where "book an appointment" buttons lead (an external booking page). */
+  booking_url: string | null
+  /** `src` of a Google Maps embed for the footer map. */
+  map_embed_url: string | null
+  /** Link that opens the location in a maps app. */
+  map_link_url: string | null
+  google_reviews_url: string | null
+  google_rating: number | null
+  google_review_count: number | null
   instagram_url: string | null
   facebook_url: string | null
   tiktok_url: string | null
@@ -151,6 +174,75 @@ export interface StoreSiteSettings {
   newsletter_enabled: boolean
   /** Order subtotal, in ILS, above which shipping is advertised as free. Display only. */
   free_shipping_threshold: number | null
+}
+
+// ── Locales ─────────────────────────────────────────────────────────────────
+
+/** Storefront languages. Hebrew is the default and has no URL prefix. */
+export type SiteLocale = "he" | "en" | "ar"
+
+// ── Services and prices ─────────────────────────────────────────────────────
+
+export interface StoreServiceItem {
+  id: string
+  name: string
+  /** One short line under the name. */
+  description: string | null
+  /** Whole shekels, VAT included. Null shows `price_note` alone. */
+  price: number | null
+  /** Shown before the price ("from") or instead of it ("by quote"). */
+  price_note: string | null
+  duration_minutes: number | null
+}
+
+/** One card of the price list, e.g. haircuts, beard, packages. */
+export interface StoreServiceGroup {
+  id: string
+  title: string
+  note: string | null
+  items: StoreServiceItem[]
+}
+
+// ── Gallery and team ────────────────────────────────────────────────────────
+
+export interface StoreGalleryItem {
+  id: string
+  image_url: string
+  alt: string | null
+  caption: string | null
+  /** Featured items are the ones the home page shows. */
+  is_featured: boolean
+}
+
+export interface StoreTeamMember {
+  id: string
+  name: string
+  role: string | null
+  photo_url: string | null
+  instagram_url: string | null
+}
+
+// ── Reviews ─────────────────────────────────────────────────────────────────
+
+export type ReviewSource = "google" | "other"
+
+export interface StoreReview {
+  id: string
+  author_name: string
+  /** 1 to 5. */
+  rating: number
+  text: string
+  /** Free text such as "a month ago"; reviews are entered by hand. */
+  date_label: string | null
+  source: ReviewSource
+}
+
+/** The overall score shown above the review cards. Entered in site settings. */
+export interface StoreReviewSummary {
+  rating: number | null
+  count: number | null
+  /** The business's public reviews page. */
+  url: string | null
 }
 
 // ── Brands ──────────────────────────────────────────────────────────────────

@@ -53,6 +53,8 @@ const toSettings = (values: Record<string, any>) => {
       return { banner_placement: values.banner_placement }
     case "categories":
     case "brands":
+    case "gallery":
+    case "reviews":
       return limit
     default:
       return {}
@@ -88,23 +90,38 @@ const HomepageSectionsPage = () => {
   const rows = data?.rows ?? []
   const ids = rows.map((row) => row.id)
   const urlHint = t("bonanza.fields.urlHint")
-  const withText = has(["hero", "product_rail", "categories", "brands", "academy", "editorial", "newsletter"])
+  // The info strip has no text of its own: it shows the hours, address and
+  // phone from the site settings.
+  const withTitle = has([
+    "hero", "product_rail", "categories", "brands", "academy", "editorial", "newsletter",
+    "about", "pricing", "gallery", "reviews",
+  ])
+  const withSubtitle = has([
+    "hero", "product_rail", "academy", "editorial", "newsletter", "about", "pricing", "gallery",
+    "reviews",
+  ])
+  const withImage = has(["hero", "academy", "about"])
+  const withButton = has([
+    "hero", "product_rail", "categories", "brands", "academy", "about", "pricing", "gallery",
+  ])
+  const withSecondButton = has(["hero", "academy"])
 
   const fields: FieldSpec[] = [
     {
       name: "type", label: t("bonanza.fields.type"), type: "select", required: true,
+      hint: t("bonanza.sections.typeHint"),
       options: SECTION_TYPES.map((type) => ({ value: type, label: t(`bonanza.sections.types.${type}`) })),
     },
     { name: "key", label: t("bonanza.fields.key"), hint: t("bonanza.fields.keyHint"), required: true, ltr: true },
-    { name: "title", label: t("bonanza.fields.title"), when: withText },
-    { name: "subtitle", label: t("bonanza.fields.subtitle"), when: has(["hero", "academy", "editorial", "newsletter"]) },
-    { name: "body", label: t("bonanza.fields.body"), type: "textarea", when: has(["academy", "editorial"]) },
-    { name: "image_url", label: t("bonanza.fields.image"), type: "image", when: has(["hero", "academy"]) },
-    { name: "image_alt", label: t("bonanza.fields.imageAlt"), hint: t("bonanza.fields.imageAltHint"), when: has(["hero", "academy"]) },
-    { name: "cta_label", label: t("bonanza.fields.ctaLabel"), when: has(["hero", "product_rail", "categories", "brands", "academy"]) },
-    { name: "cta_url", label: t("bonanza.fields.ctaUrl"), type: "url", hint: urlHint, when: has(["hero", "product_rail", "categories", "brands", "academy"]) },
-    { name: "secondary_cta_label", label: t("bonanza.fields.secondaryCtaLabel"), when: has(["hero"]) },
-    { name: "secondary_cta_url", label: t("bonanza.fields.secondaryCtaUrl"), type: "url", when: has(["hero"]) },
+    { name: "title", label: t("bonanza.fields.title"), when: withTitle },
+    { name: "subtitle", label: t("bonanza.fields.subtitle"), when: withSubtitle },
+    { name: "body", label: t("bonanza.fields.body"), type: "textarea", when: has(["academy", "editorial", "about", "pricing"]) },
+    { name: "image_url", label: t("bonanza.fields.image"), type: "image", when: withImage },
+    { name: "image_alt", label: t("bonanza.fields.imageAlt"), hint: t("bonanza.fields.imageAltHint"), when: withImage },
+    { name: "cta_label", label: t("bonanza.fields.ctaLabel"), when: withButton },
+    { name: "cta_url", label: t("bonanza.fields.ctaUrl"), type: "url", hint: urlHint, when: withButton },
+    { name: "secondary_cta_label", label: t("bonanza.fields.secondaryCtaLabel"), when: withSecondButton },
+    { name: "secondary_cta_url", label: t("bonanza.fields.secondaryCtaUrl"), type: "url", when: withSecondButton },
     {
       name: "source_type", label: t("bonanza.fields.productSource"), type: "select", when: has(["product_rail"]),
       options: PRODUCT_SOURCES.map((source) => ({ value: source, label: t(`bonanza.sections.sources.${source}`) })),
@@ -114,7 +131,7 @@ const HomepageSectionsPage = () => {
       options: (values) => sourceOptions(values.source_type),
       when: (current) => current.type === "product_rail" && SOURCES_WITH_ID.includes(current.source_type),
     },
-    { name: "limit", label: t("bonanza.fields.limit"), type: "number", when: has(["product_rail", "categories", "brands"]) },
+    { name: "limit", label: t("bonanza.fields.limit"), type: "number", when: has(["product_rail", "categories", "brands", "gallery", "reviews"]) },
     {
       name: "banner_placement", label: t("bonanza.fields.bannerPlacement"), type: "select", when: has(["banner_slot"]),
       options: BANNER_PLACEMENTS.map((placement) => ({ value: placement, label: t(`bonanza.banners.placements.${placement}`) })),
