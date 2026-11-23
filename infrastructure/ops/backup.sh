@@ -33,7 +33,8 @@
 #            dump as a normal snapshot. So the snapshot is first saved under a
 #            temporary "pending-..." tag, and is re-tagged "postgres" only
 #            after pg_dump is known to have exited with 0. A failed dump is
-#            therefore never mistaken for a backup; it is deleted.
+#            therefore never mistaken for a backup; it is deleted. The
+#            configuration snapshot is handled the same way.
 #   auto     (default) "command" when the installed restic supports it,
 #            otherwise "pipe". Ubuntu 24.04 packages restic 0.16, so on the
 #            production VM this resolves to "pipe" until restic is upgraded.
@@ -98,7 +99,7 @@ trap on_exit EXIT
 
 # ── Preparation ──────────────────────────────────────────────────────────────
 
-require_cmd docker "$RESTIC_BIN"
+require_cmd docker jq "$RESTIC_BIN"
 ensure_dirs
 load_backup_env
 # backup, restore and restore-verify share one lock: they use the same repository.
@@ -114,6 +115,44 @@ if ! restic_cmd cat config >/dev/null 2>&1; then
     || die "cannot open or initialise the restic repository. Check RESTIC_REPOSITORY, the access keys and the password file in $BACKUP_ENV_FILE."
 fi
 
+# ── Pending snapshots ────────────────────────────────────────────────────────
+# restic saves a snapshot even when its input was incomplete (a pg_dump that
+# died half way through a pipe, a file it could not read). To make sure such a
+# snapshot is never mistaken for a backup, a step whose outcome restic cannot
+# judge saves under a temporary "pending-..." tag. Only when the step is known
+# to be good is the snapshot re-tagged "postgres" or "config"; otherwise it is
+# deleted. The restore scripts only ever look at the two final tags.
+
+snapshot_ids_tagged() {
+  restic_cmd snapshots --host "$RESTIC_HOST" --tag "$1" --json | jq -r '.[]?.id'
+}
+
+# promote_pending <pending tag> <final tag>
+promote_pending() {
+  local ids count
+  ids="$(snapshot_ids_tagged "$1")"
+  count="$(printf '%s\n' "$ids" | grep -c . || true)"
+  [[ "$count" -eq 1 ]] || die "expected exactly one snapshot tagged '$1', found $count"
+  restic_cmd tag --set "$2" "$ids" >/dev/null
+}
+
+# discard_pending <pending tag>   (best effort)
+discard_pending() {
+  local ids id
+  ids="$(snapshot_ids_tagged "$1" 2>/dev/null || true)"
+  for id in $ids; do
+    restic_cmd forget "$id" >/dev/null 2>&1 || warn "could not remove the incomplete snapshot $id"
+  done
+}
+
+# Leftovers from earlier runs that were killed before they could tidy up.
+stale_ids="$(restic_cmd snapshots --host "$RESTIC_HOST" --json 2>/dev/null \
+  | jq -r '.[]? | select((.tags // []) | any(startswith("pending-"))) | .id' 2>/dev/null || true)"
+for stale_id in $stale_ids; do
+  warn "removing an incomplete snapshot left by an earlier run ($stale_id)"
+  restic_cmd forget "$stale_id" >/dev/null 2>&1 || warn "could not remove $stale_id"
+done
+
 # ── PostgreSQL ───────────────────────────────────────────────────────────────
 
 PG_DUMP=("${COMPOSE[@]}" exec -T "$PG_SERVICE" pg_dump -U "$PG_USER" -d "$PG_DATABASE" -Fc)
@@ -127,12 +166,6 @@ if [[ "$stdin_mode" == "auto" ]]; then
   fi
 fi
 
-# IDs of snapshots left under a temporary "pending-" tag by earlier failed runs.
-pending_snapshot_ids() {
-  restic_cmd snapshots --host "$RESTIC_HOST" --json \
-    | jq -r '.[]? | select((.tags // []) | any(startswith("pending-"))) | .id'
-}
-
 backup_postgres_command() {
   log "postgres: pg_dump -> restic (restic runs pg_dump and checks its exit code)"
   restic_cmd backup --host "$RESTIC_HOST" --tag postgres \
@@ -140,16 +173,7 @@ backup_postgres_command() {
 }
 
 backup_postgres_pipe() {
-  local pending_tag="pending-$RUN_ID" status ids id count
-  require_cmd jq
-
-  # Leftovers from earlier failed runs are useless; remove them (best effort).
-  ids="$(pending_snapshot_ids 2>/dev/null || true)"
-  for id in $ids; do
-    warn "postgres: removing an incomplete snapshot left by an earlier run ($id)"
-    restic_cmd forget "$id" >/dev/null 2>&1 || warn "postgres: could not remove $id"
-  done
-
+  local pending_tag="pending-postgres-$RUN_ID" status
   log "postgres: pg_dump | restic (snapshot is tagged '$pending_tag' until pg_dump is confirmed)"
   set +e
   "${PG_DUMP[@]}" \
@@ -158,21 +182,12 @@ backup_postgres_pipe() {
   set -e
 
   if [[ "${status[0]}" -ne 0 || "${status[1]}" -ne 0 ]]; then
-    # Whatever restic saved is incomplete. It is not tagged "postgres", so no
-    # other script will ever use it; delete it as well.
-    ids="$(restic_cmd snapshots --host "$RESTIC_HOST" --tag "$pending_tag" --json 2>/dev/null | jq -r '.[]?.id' 2>/dev/null || true)"
-    for id in $ids; do
-      restic_cmd forget "$id" >/dev/null 2>&1 || warn "postgres: could not remove the incomplete snapshot $id"
-    done
+    discard_pending "$pending_tag"
     die "postgres: backup failed (pg_dump exit code ${status[0]}, restic exit code ${status[1]})"
   fi
 
-  ids="$(restic_cmd snapshots --host "$RESTIC_HOST" --tag "$pending_tag" --json | jq -r '.[]?.id')"
-  count="$(printf '%s\n' "$ids" | grep -c . || true)"
-  [[ "$count" -eq 1 ]] || die "postgres: expected exactly one snapshot tagged '$pending_tag', found $count"
-
   # pg_dump succeeded: make it a real backup.
-  restic_cmd tag --set postgres "$ids" >/dev/null
+  promote_pending "$pending_tag" postgres
   log "postgres: dump complete, snapshot re-tagged 'postgres'"
 }
 
@@ -184,9 +199,9 @@ esac
 
 # ── Configuration files ──────────────────────────────────────────────────────
 # Stored with paths relative to $BONANZA_DIR, so they can be restored straight
-# into a fresh /opt/bonanza. A missing file does not stop the others from
-# being saved, but it does fail the run: an incomplete rebuild kit should be
-# noticed, not discovered during a disaster.
+# into a fresh /opt/bonanza. A problem here does not stop the rest of the run
+# (the database is already safe), but it does fail it: an incomplete rebuild
+# kit should be noticed, not discovered during a disaster.
 
 config_files=()
 for file in $BACKUP_CONFIG_FILES; do
@@ -200,7 +215,20 @@ done
 
 if [[ "${#config_files[@]}" -gt 0 ]]; then
   log "config: ${config_files[*]}"
-  (cd "$BONANZA_DIR" && restic_cmd backup --host "$RESTIC_HOST" --tag config "${config_files[@]}")
+  config_pending="pending-config-$RUN_ID"
+  config_rc=0
+  (cd "$BONANZA_DIR" && restic_cmd backup --host "$RESTIC_HOST" --tag "$config_pending" "${config_files[@]}") || config_rc=$?
+  if [[ "$config_rc" -eq 0 ]]; then
+    # Kept even when a listed file was missing (the run still fails at the
+    # end): the files that do exist, images.env above all, must be current.
+    promote_pending "$config_pending" config
+  else
+    # restic exits non-zero when it could not read a file. It may have saved
+    # a snapshot anyway; that one is not complete and is not kept.
+    discard_pending "$config_pending"
+    warn "config: restic could not back up the configuration files (exit code $config_rc)"
+    EXIT_CODE=1
+  fi
 else
   warn "config: none of the configuration files exist; nothing was backed up"
   EXIT_CODE=1

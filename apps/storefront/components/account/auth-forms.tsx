@@ -1,7 +1,6 @@
 "use client"
 
 import Link from "next/link"
-import { useActionState } from "react"
 import { Button, ButtonLink } from "@/components/ui/button"
 import { Field, FormMessage } from "@/components/ui/field"
 import { t } from "@/lib/i18n"
@@ -12,14 +11,15 @@ import {
   resetPassword,
   type FormState,
 } from "@/lib/medusa/customer"
+import { useFormAction } from "@/components/ui/use-form-action"
 
 const idle: FormState = { status: "idle" }
 const linkClass = "font-semibold text-paper underline underline-offset-4"
 
 export function LoginForm({ next }: { next: string }) {
-  const [state, action, pending] = useActionState(login, idle)
+  const { state, action, onSubmit, pending } = useFormAction(login, idle)
   return (
-    <form action={action} className="space-y-4" noValidate>
+    <form action={action} onSubmit={onSubmit} className="space-y-4" noValidate>
       <input type="hidden" name="next" value={next} />
       <Field label={t.account.email} name="email" type="email" ltr required autoComplete="email" />
       <Field
@@ -50,10 +50,10 @@ export function LoginForm({ next }: { next: string }) {
 }
 
 export function RegisterForm({ next }: { next: string }) {
-  const [state, action, pending] = useActionState(register, idle)
+  const { state, action, onSubmit, pending } = useFormAction(register, idle)
   const errors = state.fieldErrors ?? {}
   return (
-    <form action={action} className="space-y-4" noValidate>
+    <form action={action} onSubmit={onSubmit} className="space-y-4" noValidate>
       <input type="hidden" name="next" value={next} />
       <div className="grid gap-4 sm:grid-cols-2">
         <Field
@@ -117,12 +117,12 @@ export function RegisterForm({ next }: { next: string }) {
 }
 
 export function ForgotPasswordForm() {
-  const [state, action, pending] = useActionState(requestPasswordReset, idle)
+  const { state, action, onSubmit, pending } = useFormAction(requestPasswordReset, idle)
   if (state.status === "success") {
     return <FormMessage tone="success">{state.message}</FormMessage>
   }
   return (
-    <form action={action} className="space-y-4" noValidate>
+    <form action={action} onSubmit={onSubmit} className="space-y-4" noValidate>
       <p className="text-mist-300">{t.account.forgotIntro}</p>
       <Field
         label={t.account.email}
@@ -144,7 +144,7 @@ export function ForgotPasswordForm() {
 }
 
 export function ResetPasswordForm({ token, email }: { token: string; email: string }) {
-  const [state, action, pending] = useActionState(resetPassword, idle)
+  const { state, action, onSubmit, pending } = useFormAction(resetPassword, idle)
   const errors = state.fieldErrors ?? {}
   if (state.status === "success") {
     return (
@@ -157,7 +157,7 @@ export function ResetPasswordForm({ token, email }: { token: string; email: stri
     )
   }
   return (
-    <form action={action} className="space-y-4" noValidate>
+    <form action={action} onSubmit={onSubmit} className="space-y-4" noValidate>
       <input type="hidden" name="token" value={token} />
       <input type="hidden" name="email" value={email} />
       <Field

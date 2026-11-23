@@ -1,23 +1,26 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useActionState, useEffect, useTransition } from "react"
+import { useEffect, useRef, useTransition } from "react"
 import { buttonClass } from "@/components/ui/button"
 import { inputClass } from "@/components/ui/field"
 import { CloseIcon } from "@/components/ui/icons"
 import { t } from "@/lib/i18n"
 import { applyPromoCode, removePromoCode, type PromoState } from "@/lib/medusa/cart"
+import { useFormAction } from "@/components/ui/use-form-action"
 
 const initial: PromoState = { status: "idle" }
 
 /** Discount codes: the ones applied, and a field to add another. */
 export function PromoCodeForm({ applied }: { applied: string[] }) {
   const router = useRouter()
-  const [state, action, pending] = useActionState(applyPromoCode, initial)
+  const { state, action, onSubmit, pending } = useFormAction(applyPromoCode, initial)
   const [removing, startRemoving] = useTransition()
+  const formRef = useRef<HTMLFormElement>(null)
 
   useEffect(() => {
     if (state.status === "success") {
+      formRef.current?.reset()
       router.refresh()
     }
   }, [state, router])
@@ -50,7 +53,7 @@ export function PromoCodeForm({ applied }: { applied: string[] }) {
           ))}
         </ul>
       )}
-      <form action={action} className="flex gap-2">
+      <form ref={formRef} action={action} onSubmit={onSubmit} className="flex gap-2">
         <label htmlFor="promo-code" className="sr-only">
           {t.cart.promoLabel}
         </label>

@@ -3,7 +3,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { OrderDetails } from "@/components/checkout/order-details"
 import { t } from "@/lib/i18n"
-import { retrieveCustomer, retrieveOrder } from "@/lib/medusa/customer-data"
+import { retrieveCustomerOrder } from "@/lib/medusa/customer-data"
 
 export const metadata: Metadata = {
   title: t.account.orders,
@@ -12,9 +12,9 @@ export const metadata: Metadata = {
 
 export default async function AccountOrderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const [order, customer] = await Promise.all([retrieveOrder(id), retrieveCustomer()])
-  // The order must belong to the signed-in customer.
-  if (!order || !customer || order.customer_id !== customer.id) {
+  // Only the signed-in customer's own orders can be found here.
+  const order = await retrieveCustomerOrder(id)
+  if (!order) {
     notFound()
   }
   return (

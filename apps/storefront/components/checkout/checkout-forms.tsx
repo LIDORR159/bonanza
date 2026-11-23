@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useActionState, useState } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Field, FormMessage } from "@/components/ui/field"
 import { LockIcon } from "@/components/ui/icons"
@@ -15,6 +15,7 @@ import {
 } from "@/lib/medusa/checkout"
 import type { FormState } from "@/lib/medusa/customer"
 import { AddressFields, type AddressValues } from "./address-fields"
+import { useFormAction } from "@/components/ui/use-form-action"
 
 const idle: FormState = { status: "idle" }
 
@@ -32,12 +33,12 @@ export function DetailsForm({
   billingDiffers: boolean
   signedIn: boolean
 }) {
-  const [state, action, pending] = useActionState(saveDetails, idle)
+  const { state, action, onSubmit, pending } = useFormAction(saveDetails, idle)
   const [sameBilling, setSameBilling] = useState(!billingDiffers)
   const errors = state.fieldErrors ?? {}
 
   return (
-    <form action={action} noValidate className="space-y-9">
+    <form action={action} onSubmit={onSubmit} noValidate className="space-y-9">
       <section aria-labelledby="checkout-contact">
         <h2 id="checkout-contact" className="mb-4 text-xl">
           {t.checkout.contact}
@@ -119,14 +120,14 @@ export function ShippingForm({
   options: ShippingOption[]
   selectedId: string | null
 }) {
-  const [state, action, pending] = useActionState(saveShippingMethod, idle)
+  const { state, action, onSubmit, pending } = useFormAction(saveShippingMethod, idle)
 
   if (!options.length) {
     return <FormMessage tone="info">{t.checkout.noShippingOptions}</FormMessage>
   }
 
   return (
-    <form action={action} className="space-y-6">
+    <form action={action} onSubmit={onSubmit} className="space-y-6">
       <fieldset>
         <legend className="mb-4 text-xl font-extrabold">{t.checkout.shippingMethod}</legend>
         <div className="space-y-3">
@@ -170,14 +171,14 @@ export function ShippingForm({
 
 /** Step 3: hand over to the payment page. */
 export function PaymentForm({ available, isTest }: { available: boolean; isTest: boolean }) {
-  const [state, action, pending] = useActionState(startPayment, idle)
+  const { state, action, onSubmit, pending } = useFormAction(startPayment, idle)
 
   if (!available) {
     return <FormMessage tone="info">{t.checkout.paymentUnavailable}</FormMessage>
   }
 
   return (
-    <form action={action} className="space-y-5">
+    <form action={action} onSubmit={onSubmit} className="space-y-5">
       <h2 className="text-xl">{t.checkout.paymentTitle}</h2>
       <p className="text-mist-300">{t.checkout.paymentRedirect}</p>
       {isTest && <FormMessage tone="info">{t.checkout.devPaymentNote}</FormMessage>}

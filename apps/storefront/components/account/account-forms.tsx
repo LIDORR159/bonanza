@@ -1,12 +1,13 @@
 "use client"
 
-import { useActionState, useEffect, useRef } from "react"
+import { useEffect, useRef } from "react"
 import { AddressFields, type AddressValues } from "@/components/checkout/address-fields"
 import { Button } from "@/components/ui/button"
 import { Field, FormMessage } from "@/components/ui/field"
 import { formatIsraeliPhone } from "@/lib/format"
 import { t } from "@/lib/i18n"
 import { saveAddress, updateProfile, type FormState } from "@/lib/medusa/customer"
+import { useFormAction } from "@/components/ui/use-form-action"
 
 const idle: FormState = { status: "idle" }
 
@@ -21,10 +22,10 @@ export function ProfileForm({
   phone: string
   email: string
 }) {
-  const [state, action, pending] = useActionState(updateProfile, idle)
+  const { state, action, onSubmit, pending } = useFormAction(updateProfile, idle)
   const errors = state.fieldErrors ?? {}
   return (
-    <form action={action} className="max-w-xl space-y-4" noValidate>
+    <form action={action} onSubmit={onSubmit} className="max-w-xl space-y-4" noValidate>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field
           label={t.checkout.firstName}
@@ -76,7 +77,7 @@ export function AddressForm({
   values?: AddressValues
   isDefault?: boolean
 }) {
-  const [state, action, pending] = useActionState(saveAddress, idle)
+  const { state, action, onSubmit, pending } = useFormAction(saveAddress, idle)
   const formRef = useRef<HTMLFormElement>(null)
 
   useEffect(() => {
@@ -86,7 +87,7 @@ export function AddressForm({
   }, [state, addressId])
 
   return (
-    <form ref={formRef} action={action} className="space-y-4" noValidate>
+    <form ref={formRef} action={action} onSubmit={onSubmit} className="space-y-4" noValidate>
       {addressId && <input type="hidden" name="address_id" value={addressId} />}
       <AddressFields values={values} errors={state.fieldErrors ?? {}} />
       <label className="flex cursor-pointer items-center gap-3 text-[0.95rem] text-mist-200">

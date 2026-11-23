@@ -62,3 +62,20 @@ export async function retrieveOrder(id: string): Promise<StoreOrder | null> {
     return null
   }
 }
+
+/**
+ * One of the signed-in customer's own orders, or null. The lookup goes through
+ * the customer's order list, so Medusa itself decides whether the order is
+ * theirs: an id belonging to someone else simply is not found.
+ */
+export async function retrieveCustomerOrder(id: string): Promise<StoreOrder | null> {
+  try {
+    const { orders } = await privateFetch<{ orders: StoreOrder[] }>("/store/orders", {
+      query: { id, limit: 1, fields: ORDER_FIELDS },
+      headers: await authHeaders(),
+    })
+    return orders[0] ?? null
+  } catch {
+    return null
+  }
+}

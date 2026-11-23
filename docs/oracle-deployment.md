@@ -244,7 +244,7 @@ scp -i ~/.ssh/bonanza_admin -r infrastructure/ops bonanza@<public ip>:/tmp/ops
 On the VM, as `bonanza`:
 
 ```bash
-/tmp/ops/systemd/install.sh
+bash /tmp/ops/systemd/install.sh
 rm -r /tmp/ops
 ```
 
@@ -327,12 +327,12 @@ Ports published by Docker containers are forwarded by the kernel and do not pass
 
 ### Switching an existing VM
 
-The first-boot setup does not run again, so a later change of mode has three manual parts.
+The first-boot setup does not run again by itself, so changing the mode later is done by hand.
 
 From `tunnel` to `direct`:
 
 1. **[Sign-in]** Set `ingress_mode = "direct"` in `terraform.tfvars`, then `terraform plan` and `terraform apply`. The plan must show 2 security rules to add and nothing else. The VM itself is not touched.
-2. On the VM: `sudo /usr/local/sbin/bonanza-first-boot.sh direct`. This adds the two rules to the host firewall, reloads it and restarts the Docker daemon. Expect a few seconds of interruption.
+2. On the VM: `sudo /usr/local/sbin/bonanza-first-boot.sh direct`. This adds the two rules to the host firewall, reloads it and restarts the Docker daemon. Expect a few seconds of interruption. The script also repeats its other steps; they find everything in place, apart from restarting sshd and fail2ban, which does not end your session.
 3. On the VM: set `COMPOSE_PROFILES=direct` in `/opt/bonanza/.env`, then from `/opt/bonanza`:
 
    ```bash

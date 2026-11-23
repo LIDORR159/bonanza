@@ -35,17 +35,19 @@ export function CatalogFilters({
     ? ["relevance", "newest", "price-asc", "price-desc", "title"]
     : ["newest", "price-asc", "price-desc", "title"]
 
-  const form = (
+  // The form appears twice, folded on phones and open on desktop. `idPrefix`
+  // keeps the two copies' element ids apart.
+  const form = (idPrefix: string) => (
     <form action={basePath} method="get" className="space-y-7">
       {params.q && <input type="hidden" name="q" value={params.q} />}
 
       <fieldset>
         <legend className="mb-2.5 text-sm font-semibold text-paper">{t.catalog.sort}</legend>
-        <label htmlFor="catalog-sort" className="sr-only">
+        <label htmlFor={`${idPrefix}-catalog-sort`} className="sr-only">
           {t.catalog.sort}
         </label>
         <select
-          id="catalog-sort"
+          id={`${idPrefix}-catalog-sort`}
           name="sort"
           defaultValue={params.sort ?? sortOptions[0]}
           className={clsx(inputClass, "h-11 text-sm")}
@@ -108,11 +110,11 @@ export function CatalogFilters({
       <fieldset>
         <legend className="mb-2.5 text-sm font-semibold text-paper">{t.catalog.priceRange}</legend>
         <div className="flex items-center gap-2">
-          <label htmlFor="catalog-min" className="sr-only">
+          <label htmlFor={`${idPrefix}-catalog-min`} className="sr-only">
             {t.catalog.minPrice}
           </label>
           <input
-            id="catalog-min"
+            id={`${idPrefix}-catalog-min`}
             name="min"
             type="number"
             inputMode="numeric"
@@ -125,11 +127,11 @@ export function CatalogFilters({
           <span aria-hidden="true" className="text-mist-400">
             –
           </span>
-          <label htmlFor="catalog-max" className="sr-only">
+          <label htmlFor={`${idPrefix}-catalog-max`} className="sr-only">
             {t.catalog.maxPrice}
           </label>
           <input
-            id="catalog-max"
+            id={`${idPrefix}-catalog-max`}
             name="max"
             type="number"
             inputMode="numeric"
@@ -187,10 +189,10 @@ export function CatalogFilters({
             +
           </span>
         </summary>
-        <div className="border-t border-ink-600 p-4">{form}</div>
+        <div className="border-t border-ink-600 p-4">{form("m")}</div>
       </details>
       <aside aria-label={t.catalog.filters} className="hidden lg:block">
-        {form}
+        {form("d")}
       </aside>
     </>
   )

@@ -61,11 +61,16 @@ type SearchResult = {
   facets?: Record<string, { values?: { value: string; count: number }[]; min?: number; max?: number }>
 }
 
+/**
+ * Sort orders. Every one ends with the title as a second key: many products
+ * share a creation time or a price, and without a tie-breaker the same product
+ * can turn up on two pages while another is never shown.
+ */
 const ORDER: Record<SortOption, Record<string, "ASC" | "DESC"> | undefined> = {
   relevance: undefined,
-  newest: { created_at: "DESC" },
-  "price-asc": { min_price_ils: "ASC" },
-  "price-desc": { min_price_ils: "DESC" },
+  newest: { created_at: "DESC", title: "ASC" },
+  "price-asc": { min_price_ils: "ASC", title: "ASC" },
+  "price-desc": { min_price_ils: "DESC", title: "ASC" },
   title: { title: "ASC" },
 }
 

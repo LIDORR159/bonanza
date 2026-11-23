@@ -13,6 +13,10 @@
 # cloud-init runs this once, on the first boot of a new instance. Editing the
 # file later does not change a VM that already exists.
 #
+# Keep the file compact. Oracle limits instance metadata to 32,000 bytes, and
+# this file is base64-encoded (a third larger) before it is sent. Terraform
+# refuses to plan if it grows past that.
+#
 # What happens, in order:
 #   1. cloud-init modules: timezone, users, SSH settings, swap file, config
 #      files (write_files), apt package installation.

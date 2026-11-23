@@ -1,22 +1,22 @@
 "use client"
 
-import { useActionState } from "react"
 import { Button } from "@/components/ui/button"
 import { FormMessage, inputClass } from "@/components/ui/field"
 import { t } from "@/lib/i18n"
 import { subscribeToNewsletter, type NewsletterState } from "@/lib/medusa/newsletter"
+import { useFormAction } from "@/components/ui/use-form-action"
 
 const initial: NewsletterState = { status: "idle" }
 
 export function NewsletterForm({ source = "home" }: { source?: string }) {
-  const [state, action, pending] = useActionState(subscribeToNewsletter, initial)
+  const { state, action, onSubmit, pending } = useFormAction(subscribeToNewsletter, initial)
 
   if (state.status === "success") {
     return <FormMessage tone="success">{state.message}</FormMessage>
   }
 
   return (
-    <form action={action} className="space-y-4" noValidate>
+    <form action={action} onSubmit={onSubmit} className="space-y-4" noValidate>
       <input type="hidden" name="source" value={source} />
       <div className="flex flex-col gap-3 sm:flex-row">
         <div className="flex-1">

@@ -69,3 +69,7 @@ Thumbs.db
 *.dump
 *.sql.gz
 backups/
+
+# Saved web pages dropped in as references can carry account data; keep them local
+photos-examples/*.html
+photos-examples/*_files/

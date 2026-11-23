@@ -4,7 +4,7 @@ The store's data lives in one PostgreSQL database on one virtual machine. This g
 
 **Nothing described here is running yet.** The scripts are in `infrastructure/ops`; they start working once the VM exists and the setup below has been done. Creating the VM is covered in [oracle-deployment.md](oracle-deployment.md).
 
-Steps that need a secret only the owner has are marked **[Credentials]**. Steps that must not be done without the owner's say-so are marked **[Owner approval]**.
+Steps that need a secret only the owner has are marked **[Credentials]**. Steps that open a browser to sign in to Oracle Cloud are marked **[Sign-in]**. Steps that must not be done without the owner's say-so are marked **[Owner approval]**.
 
 ## What the owner has to do
 
@@ -74,6 +74,8 @@ Once every 7 days the backup run also checks the repository (`restic check`) and
 - Ubuntu 24.04 packages restic 0.16, which cannot. There the dump is piped into restic, and the snapshot is first saved under a temporary `pending-...` tag. It is renamed to `postgres` only after `pg_dump` has reported success. If `pg_dump` fails, the pending snapshot is deleted and the run fails. Restores and restore checks only ever look at snapshots tagged `postgres`.
 
 The script picks the first method when the installed restic supports it and the second otherwise. On the VM as built by cloud-init that is the second.
+
+The configuration snapshot is protected the same way: it is saved under a pending tag and becomes `config` only if restic read every file. If one of the four files is missing, the others are still saved, and the run fails so that you hear about it.
 
 ## One-time setup
 
@@ -209,7 +211,7 @@ There is no standby machine. Until the steps are finished, the store is down.
 
    ```bash
    scp -r infrastructure/ops bonanza@<new ip>:/tmp/ops      # from your machine
-   /tmp/ops/systemd/install.sh && rm -r /tmp/ops            # on the VM
+   bash /tmp/ops/systemd/install.sh && rm -r /tmp/ops       # on the VM
    ```
 
 3. **[Credentials]** **Put the backup settings back** from your password manager:

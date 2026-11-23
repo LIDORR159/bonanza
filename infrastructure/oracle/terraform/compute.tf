@@ -53,6 +53,14 @@ locals {
   # Name of the first-boot admin user. cloud-init.yaml and the ops scripts
   # assume this name; do not change one without the others.
   admin_user = "bonanza"
+
+  # First-boot setup, rendered from the template and base64-encoded as OCI
+  # expects. It creates the admin user with the same SSH key.
+  user_data = base64encode(templatefile("${path.module}/../cloud-init.yaml", {
+    admin_user     = local.admin_user
+    ssh_public_key = trimspace(var.ssh_public_key)
+    ingress_mode   = var.ingress_mode
+  }))
 }
 
 # ── The VM ───────────────────────────────────────────────────────────────────
@@ -90,12 +98,8 @@ resource "oci_core_instance" "vm" {
     # Installed by the image for its default user "ubuntu".
     ssh_authorized_keys = trimspace(var.ssh_public_key)
 
-    # First-boot setup. Creates the admin user with the same key.
-    user_data = base64encode(templatefile("${path.module}/../cloud-init.yaml", {
-      admin_user     = local.admin_user
-      ssh_public_key = trimspace(var.ssh_public_key)
-      ingress_mode   = var.ingress_mode
-    }))
+    # First-boot setup (see local.user_data above).
+    user_data = local.user_data
   }
 
   is_pv_encryption_in_transit_enabled = var.enable_pv_encryption_in_transit
@@ -132,6 +136,12 @@ resource "oci_core_instance" "vm" {
     precondition {
       condition     = local.availability_domain != null
       error_message = "availability_domain_index is out of range: this region has fewer availability domains. Use 0 for a single-AD region such as il-jerusalem-1."
+    }
+
+    precondition {
+      # OCI accepts at most 32,000 bytes of instance metadata in total.
+      condition     = length(local.user_data) + length(var.ssh_public_key) <= 31000
+      error_message = "cloud-init.yaml is too large: once base64-encoded it must stay under about 31,000 bytes, because OCI limits instance metadata to 32,000 bytes. Shorten the file."
     }
 
     precondition {
