@@ -1,0 +1,147 @@
+# Build both production images for linux/arm64 and push them to GHCR, tagged
+# with the commit SHA. Prints the two digests, which is what a deployment
+# takes (ops/deploy.sh, ops/ssh-deploy-entrypoint.sh).
+#
+# MANUAL ONLY, ON PURPOSE. Private images count against GitHub Packages
+# storage, and on GitHub Free that is 500 MB. One pair of images is about
+# 236 MB compressed (backend 163 MB, storefront 73 MB, measured 2026-11-23),
+# so the allowance holds two pairs: the running version and the one before it,
+# which a rollback needs. Building on every push would fill it within three
+# commits. Before running this a third time, delete the oldest version of each
+# package (repository page → Packages). Keep the account's spending limit at
+# $0, so that going over is refused instead of billed.
+#
+# The runner is arm64 because the server is: the images are built natively,
+# one after the other, with no emulation. Nothing is cached between runs.
+#
+# Only the repository owner can start it. The only credential is the token
+# GitHub issues to the run, with `packages: write`.
+#
+# Actions are pinned to full commit SHAs. The comment after each is the release
+# tag that commit carried when it was looked up (2026-11-23).
+
+name: Images
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_hostnames:
+        description: "Storefront: hosts that images may be loaded from, comma-separated (the media hostname). Empty: localhost only."
+        required: false
+        default: ""
+        type: string
+      storefront_url:
+        description: "Backend: public storefront address for the admin's payment-link action, e.g. https://shop.example.com. Empty: http://localhost:8000."
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: images
+  cancel-in-progress: false
+
+env:
+  # Must stay the names ops/ssh-deploy-entrypoint.sh accepts.
+  BACKEND_IMAGE: ghcr.io/lidorr159/bonanza-backend
+  STOREFRONT_IMAGE: ghcr.io/lidorr159/bonanza-storefront
+
+jobs:
+  build:
+    name: Build and push (linux/arm64)
+    if: ${{ github.actor == github.repository_owner }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Both values are compiled into an image, so they are checked first.
+      - name: Check the build arguments
+        env:
+          IMAGE_HOSTNAMES: ${{ inputs.image_hostnames }}
+          STOREFRONT_URL: ${{ inputs.storefront_url }}
+        run: |
+          if [[ -n "$IMAGE_HOSTNAMES" && ! "$IMAGE_HOSTNAMES" =~ ^[A-Za-z0-9.-]+(,[A-Za-z0-9.-]+)*$ ]]; then
+            echo "::error::image_hostnames must be hostnames separated by commas, with no spaces"
+            exit 1
+          fi
+          if [[ -n "$STOREFRONT_URL" && ! "$STOREFRONT_URL" =~ ^https://[A-Za-z0-9.-]+(:[0-9]+)?$ ]]; then
+            echo "::error::storefront_url must look like https://shop.example.com"
+            exit 1
+          fi
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Sign in to GHCR
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # No provenance or SBOM attachments: each tag is one plain image, and
+      # nothing extra is stored.
+      - name: Build and push the backend image
+        id: backend
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: infrastructure/docker/backend.Dockerfile
+          platforms: linux/arm64
+          push: true
+          provenance: false
+          sbom: false
+          tags: ${{ env.BACKEND_IMAGE }}:${{ github.sha }}
+          build-args: |
+            STOREFRONT_URL=${{ inputs.storefront_url }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Build and push the storefront image
+        id: storefront
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: infrastructure/docker/storefront.Dockerfile
+          platforms: linux/arm64
+          push: true
+          provenance: false
+          sbom: false
+          tags: ${{ env.STOREFRONT_IMAGE }}:${{ github.sha }}
+          build-args: |
+            IMAGE_HOSTNAMES=${{ inputs.image_hostnames }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Print the digests and the compressed sizes
+        env:
+          BACKEND_DIGEST: ${{ steps.backend.outputs.digest }}
+          STOREFRONT_DIGEST: ${{ steps.storefront.outputs.digest }}
+        run: |
+          compressed_mb() {
+            docker buildx imagetools inspect --raw "$1" \
+              | jq -r '[.layers[]?.size] | (add // 0) / 1048576 | floor'
+          }
+          backend_ref="$BACKEND_IMAGE@$BACKEND_DIGEST"
+          storefront_ref="$STOREFRONT_IMAGE@$STOREFRONT_DIGEST"
+          backend_mb="$(compressed_mb "$backend_ref")"
+          storefront_mb="$(compressed_mb "$storefront_ref")"
+          {
+            echo "### Images for commit \`$GITHUB_SHA\`"
+            echo
+            echo "| Image | Reference to deploy | Compressed size |"
+            echo "|---|---|---|"
+            echo "| backend | \`$backend_ref\` | $backend_mb MB |"
+            echo "| storefront | \`$storefront_ref\` | $storefront_mb MB |"
+            echo
+            echo "Packages storage allowance: 500 MB. Delete the oldest version of each package before a third pair is pushed."
+          } | tee -a "$GITHUB_STEP_SUMMARY"

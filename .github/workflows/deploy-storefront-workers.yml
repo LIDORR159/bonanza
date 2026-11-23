@@ -1,0 +1,85 @@
+# Storefront on Cloudflare Workers: NOT IN USE. THIS WORKFLOW DEPLOYS NOTHING.
+#
+# The storefront's production home is the Docker image on the server. The
+# Workers target (apps/storefront/wrangler.jsonc, open-next.config.ts) is kept
+# buildable so that moving later is a configuration change. This workflow
+# proves that it still builds, reports how big the result is, and stops. It
+# never calls `wrangler deploy`, and no Cloudflare credential is referred to
+# below.
+#
+# MANUAL ONLY, ON PURPOSE, and only for the repository owner. It is a check
+# for an option that is not in use, so it should not spend Actions minutes on
+# every push; and a real deployment would cost money (docs/architecture.md
+# puts the Workers plan a storefront needs at about $5 a month), which the
+# owner has not approved.
+#
+# What a real deployment would need, none of which exists: a Cloudflare
+# account on a plan that can run the storefront, the R2 bucket and the D1
+# database named in wrangler.jsonc (its database id is a placeholder), an API
+# token limited to deploying this one Worker, and the storefront's settings
+# and secrets set on the Worker. Until all of that is approved, there is
+# nothing to add here.
+#
+# Actions are pinned to full commit SHAs. The comment after each is the release
+# tag that commit carried when it was looked up (2026-11-23).
+
+name: Storefront on Workers (build check, inert)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: storefront-workers
+  cancel-in-progress: true
+
+env:
+  # No usage statistics from CI.
+  DO_NOT_TRACK: "1"
+  NEXT_TELEMETRY_DISABLED: "1"
+  WRANGLER_SEND_METRICS: "false"
+
+jobs:
+  build:
+    name: Build the Workers bundle (nothing is deployed)
+    if: ${{ github.actor == github.repository_owner }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Reads the pnpm version from "packageManager" in package.json.
+      - name: Install pnpm
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+
+      - name: Install Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # `opennextjs-cloudflare build`: a normal `next build`, then the Worker
+      # bundle in apps/storefront/.open-next. It contacts no Cloudflare account.
+      - name: Build for Workers
+        run: pnpm --filter @bonanza/storefront cf:build
+
+      - name: Report the size, and stop
+        run: |
+          {
+            echo "### Nothing was deployed"
+            echo
+            echo "The Workers build of the storefront completed. Size of the output:"
+            echo
+            echo '```'
+            du -sh apps/storefront/.open-next apps/storefront/.open-next/* 2>/dev/null || true
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "::notice title=Nothing was deployed::deploy-storefront-workers.yml only checks that the Workers target still builds."

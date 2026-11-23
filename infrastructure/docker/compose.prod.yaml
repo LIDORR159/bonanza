@@ -1,0 +1,421 @@
+# BONANZA production stack.
+#
+# On the server this file is /opt/bonanza/compose.yaml, next to:
+#
+#   .env         settings and secrets (see .env.production.example), mode 600
+#   images.env   BACKEND_IMAGE and STOREFRONT_IMAGE, written by ops/deploy.sh
+#   Caddyfile    the reverse proxy configuration from this directory
+#
+# Every command needs both env files:
+#
+#   docker compose --env-file .env --env-file images.env up -d
+#   docker compose --env-file .env --env-file images.env run --rm migrate
+#
+# How web traffic gets in is chosen by COMPOSE_PROFILES in .env:
+#
+#   tunnel   cloudflared connects out to Cloudflare and hands requests to
+#            "caddy" on the private network. No port is published.
+#   direct   "caddy-direct" publishes 80 and 443 and obtains its own
+#            certificates. For testing before the domain is on Cloudflare.
+#
+# With neither profile the applications and data stores run with no way in.
+# "migrate" is in the profile "tools", so it only runs when asked for by name.
+#
+# Nothing here mounts the Docker socket, and PostgreSQL and Redis publish no
+# port: they are reachable only from the backend, over a network that has no
+# route to the internet.
+
+name: bonanza
+
+# ── Shared settings ──────────────────────────────────────────────────────────
+
+# Container logs stay on the server: 5 files of 10 MB per container.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+# A process in a container can never gain more privileges than it started with.
+x-no-new-privileges: &no-new-privileges
+  - no-new-privileges:true
+
+# What every backend process reads (server, worker and the migration job).
+# Values with ":?" are required: Compose refuses to run without them.
+x-backend-environment: &backend-environment
+  NODE_ENV: production
+  # production | staging. "staging" is a production build that may load the
+  # simulated payment provider; the backend refuses PAYMENT_DEV_ENABLED=true
+  # when this is "production".
+  APP_ENV: ${APP_ENV:-production}
+  MEDUSA_DISABLE_TELEMETRY: "true"
+
+  # sslmode=disable is required: for any host other than localhost, Medusa's
+  # migration step otherwise insists on TLS, which this PostgreSQL does not
+  # offer, and `medusa db:migrate` fails with a connection timeout. (Medusa's
+  # own spelling, ssl_mode=disable, does not reach that step in 2.23.) The
+  # connection never leaves the private "data" network on this one machine.
+  DATABASE_URL: postgres://bonanza:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/bonanza?sslmode=disable
+  REDIS_URL: redis://redis:6379
+
+  # Public addresses. They follow the hostnames unless set explicitly.
+  MEDUSA_BACKEND_URL: ${MEDUSA_BACKEND_URL:-https://${API_HOST}}
+  STOREFRONT_URL: ${STOREFRONT_URL:-https://${STOREFRONT_HOST}}
+  # How the backend reaches the storefront to refresh cached pages.
+  STOREFRONT_INTERNAL_URL: http://storefront:8000
+  STORE_CORS: ${STORE_CORS:-https://${STOREFRONT_HOST}}
+  ADMIN_CORS: ${ADMIN_CORS:-https://${DASHBOARD_HOST}}
+  AUTH_CORS: ${AUTH_CORS:-https://${STOREFRONT_HOST},https://${DASHBOARD_HOST}}
+
+  JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+  JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+  COOKIE_SECRET: ${COOKIE_SECRET:?set COOKIE_SECRET in .env}
+  AUTH_MFA_ENCRYPTION_KEY: ${AUTH_MFA_ENCRYPTION_KEY:?set AUTH_MFA_ENCRYPTION_KEY in .env}
+  REVALIDATE_SECRET: ${REVALIDATE_SECRET:?set REVALIDATE_SECRET in .env}
+  CMS_PREVIEW_SECRET: ${CMS_PREVIEW_SECRET:?set CMS_PREVIEW_SECRET in .env}
+
+  SMTP_HOST: ${SMTP_HOST:-}
+  SMTP_PORT: ${SMTP_PORT:-587}
+  SMTP_SECURE: ${SMTP_SECURE:-false}
+  SMTP_USER: ${SMTP_USER:-}
+  SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+  SMTP_FROM: ${SMTP_FROM:-}
+
+  S3_BUCKET: ${S3_BUCKET:-}
+  S3_REGION: ${S3_REGION:-auto}
+  S3_ENDPOINT: ${S3_ENDPOINT:-}
+  S3_FILE_URL: ${S3_FILE_URL:-}
+  S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+  S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+  S3_PREFIX: ${S3_PREFIX:-}
+  S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-false}
+
+  PAYMENT_DEV_ENABLED: ${PAYMENT_DEV_ENABLED:-false}
+  PAYMENT_DEV_WEBHOOK_SECRET: ${PAYMENT_DEV_WEBHOOK_SECRET:-}
+  PAYMENT_DEV_CAPTURE_MODE: ${PAYMENT_DEV_CAPTURE_MODE:-automatic}
+  # The simulated gateway and its provider talk to each other inside the stack.
+  PAYMENT_DEV_GATEWAY_URL: http://medusa-server:9000
+
+  RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
+  # Caddy replaces CF-Connecting-IP with the visitor address it has
+  # established itself (see the Caddyfile), so the header can be trusted in
+  # both ingress modes.
+  TRUST_CLOUDFLARE_IP: ${TRUST_CLOUDFLARE_IP:-true}
+
+x-backend-depends-on: &backend-depends-on
+  postgres:
+    condition: service_healthy
+  redis:
+    condition: service_healthy
+
+# What the reverse proxy reads. The Caddyfile explains each one.
+x-caddy-environment: &caddy-environment
+  CADDY_TLS: ${CADDY_TLS:-public}
+  STOREFRONT_HOST: ${STOREFRONT_HOST:?set STOREFRONT_HOST in .env}
+  API_HOST: ${API_HOST:?set API_HOST in .env}
+  DASHBOARD_HOST: ${DASHBOARD_HOST:?set DASHBOARD_HOST in .env}
+  STOREFRONT_WWW_HOST: ${STOREFRONT_WWW_HOST:-www.invalid}
+
+x-caddy: &caddy
+  image: caddy:2.11.9-alpine@sha256:003a97808e781aa9f7e75cc2f43d34d461099031faf5e20faefb9f61126836f0
+  restart: unless-stopped
+  depends_on:
+    storefront:
+      condition: service_started
+    medusa-server:
+      condition: service_started
+  volumes:
+    - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    - caddy-data:/data
+    - caddy-config:/config
+  healthcheck:
+    test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:80/healthz"]
+    interval: 15s
+    timeout: 5s
+    retries: 4
+    start_period: 20s
+    start_interval: 2s
+  networks:
+    - web
+  mem_limit: 128m
+  cap_drop:
+    - ALL
+  cap_add:
+    - NET_BIND_SERVICE
+  security_opt: *no-new-privileges
+  logging: *logging
+
+services:
+  # ── Data stores ────────────────────────────────────────────────────────────
+
+  postgres:
+    image: postgres:17.12-alpine@sha256:f9cf3e1f0066f0eb0c48707d864f0ac5941e9ff454a072077d97a4d278d07d73
+    restart: unless-stopped
+    # The user and database names are what the ops scripts expect (backup,
+    # restore). Sized for the 2 GB limit below.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=512MB
+      - -c
+      - effective_cache_size=1536MB
+      - -c
+      - maintenance_work_mem=128MB
+      - -c
+      - work_mem=8MB
+    environment:
+      POSTGRES_USER: bonanza
+      POSTGRES_DB: bonanza
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      # Asked over TCP: the temporary server that runs while a new data
+      # directory is initialised listens on the socket only, so it never
+      # counts as ready.
+      test: ["CMD-SHELL", "pg_isready -q -h 127.0.0.1 -U bonanza -d bonanza"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 60s
+      start_interval: 2s
+    networks:
+      - data
+    shm_size: 256m
+    mem_limit: 2g
+    stop_grace_period: 1m
+    security_opt: *no-new-privileges
+    logging: *logging
+
+  redis:
+    image: redis:7.4.12-alpine@sha256:7f7d30b7fdd09467bac58198a1f166dd69789d348d4fe859cccb20e0cf287fbe
+    restart: unless-stopped
+    # Queues, events, locks and admin sessions. Every write is appended to a
+    # file (synced once a second). Nothing is ever evicted: a queue must not
+    # lose jobs. Redis refuses writes at 256 MB instead of growing into the
+    # container limit.
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --appendfsync
+      - everysec
+      - --maxmemory
+      - 256mb
+      - --maxmemory-policy
+      - noeviction
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 20s
+      start_interval: 2s
+    networks:
+      - data
+    mem_limit: 384m
+    security_opt: *no-new-privileges
+    logging: *logging
+
+  # ── Backend: one image, two long-running modes and one job ─────────────────
+
+  medusa-server:
+    image: ${BACKEND_IMAGE:?BACKEND_IMAGE is not set (images.env, written by ops/deploy.sh)}
+    restart: unless-stopped
+    init: true
+    command: ["medusa", "start"]
+    environment:
+      <<: *backend-environment
+      MEDUSA_WORKER_MODE: server
+      DISABLE_MEDUSA_ADMIN: "false"
+      NODE_OPTIONS: --max-old-space-size=1024
+    depends_on: *backend-depends-on
+    volumes:
+      - medusa-uploads:/app/static
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 120s
+      start_interval: 5s
+    networks:
+      - web
+      - data
+    mem_limit: 1536m
+    stop_grace_period: 30s
+    cap_drop:
+      - ALL
+    security_opt: *no-new-privileges
+    logging: *logging
+
+  medusa-worker:
+    image: ${BACKEND_IMAGE:?BACKEND_IMAGE is not set (images.env, written by ops/deploy.sh)}
+    restart: unless-stopped
+    init: true
+    command: ["medusa", "start"]
+    environment:
+      <<: *backend-environment
+      MEDUSA_WORKER_MODE: worker
+      DISABLE_MEDUSA_ADMIN: "true"
+      NODE_OPTIONS: --max-old-space-size=640
+    depends_on: *backend-depends-on
+    volumes:
+      - medusa-uploads:/app/static
+    healthcheck:
+      # The worker serves no API, but it still answers /health.
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 120s
+      start_interval: 5s
+    networks:
+      - web
+      - data
+    mem_limit: 1g
+    stop_grace_period: 30s
+    cap_drop:
+      - ALL
+    security_opt: *no-new-privileges
+    logging: *logging
+
+  # Database migrations. Runs once and exits:
+  #   docker compose --env-file .env --env-file images.env run --rm migrate
+  # ops/deploy.sh does this before it starts a new version.
+  migrate:
+    image: ${BACKEND_IMAGE:?BACKEND_IMAGE is not set (images.env, written by ops/deploy.sh)}
+    profiles: ["tools"]
+    restart: "no"
+    init: true
+    command: ["medusa", "db:migrate"]
+    environment:
+      <<: *backend-environment
+      MEDUSA_WORKER_MODE: shared
+      DISABLE_MEDUSA_ADMIN: "true"
+    depends_on: *backend-depends-on
+    healthcheck:
+      disable: true
+    networks:
+      - web
+      - data
+    mem_limit: 1g
+    cap_drop:
+      - ALL
+    security_opt: *no-new-privileges
+    logging: *logging
+
+  # ── Storefront ─────────────────────────────────────────────────────────────
+
+  storefront:
+    image: ${STOREFRONT_IMAGE:?STOREFRONT_IMAGE is not set (images.env, written by ops/deploy.sh)}
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"
+      SITE_URL: ${STOREFRONT_URL:-https://${STOREFRONT_HOST}}
+      # The Store API, over the private network.
+      MEDUSA_BACKEND_URL: http://medusa-server:9000
+      # Created by the first migration run, so it cannot be required here:
+      # see README.md, "First start".
+      MEDUSA_PUBLISHABLE_KEY: ${MEDUSA_PUBLISHABLE_KEY:-}
+      DEFAULT_COUNTRY: ${DEFAULT_COUNTRY:-il}
+      REVALIDATE_SECRET: ${REVALIDATE_SECRET:?set REVALIDATE_SECRET in .env}
+      CMS_PREVIEW_SECRET: ${CMS_PREVIEW_SECRET:?set CMS_PREVIEW_SECRET in .env}
+      ALLOW_INDEXING: ${ALLOW_INDEXING:-false}
+      NODE_OPTIONS: --max-old-space-size=512
+    depends_on:
+      medusa-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8000/manifest.webmanifest"]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 30s
+      start_interval: 2s
+    networks:
+      - web
+    mem_limit: 768m
+    stop_grace_period: 15s
+    cap_drop:
+      - ALL
+    security_opt: *no-new-privileges
+    logging: *logging
+
+  # ── Ingress ────────────────────────────────────────────────────────────────
+
+  # Tunnel mode: plain HTTP on the private network, nothing published.
+  caddy:
+    <<: *caddy
+    profiles: ["tunnel"]
+    environment:
+      <<: *caddy-environment
+      SITE_SCHEME: http
+
+  # Tunnel mode: the only way in. It dials out to Cloudflare; which hostnames
+  # go where is configured on the tunnel at Cloudflare, each pointing at
+  # http://caddy:80.
+  cloudflared:
+    image: cloudflare/cloudflared:2026.11.1@sha256:e613aadbc2d9511785d2e67a86b0c8ac18dd63a3f9af0d06faf04cbfdcb35f2d
+    profiles: ["tunnel"]
+    restart: unless-stopped
+    command: ["tunnel", "--no-autoupdate", "run"]
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:-}
+      # Loopback only: used by the health check below.
+      TUNNEL_METRICS: 127.0.0.1:20241
+    depends_on:
+      caddy:
+        condition: service_healthy
+    healthcheck:
+      # Succeeds once at least one connection to Cloudflare is up.
+      test: ["CMD", "cloudflared", "tunnel", "ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 30s
+      start_interval: 3s
+    networks:
+      - web
+    mem_limit: 128m
+    cap_drop:
+      - ALL
+    security_opt: *no-new-privileges
+    logging: *logging
+
+  # Direct mode: the same proxy, published on 80 and 443, with HTTPS and its
+  # own certificates.
+  caddy-direct:
+    <<: *caddy
+    profiles: ["direct"]
+    environment:
+      <<: *caddy-environment
+      SITE_SCHEME: https
+    ports:
+      - "${DIRECT_HTTP_BIND:-0.0.0.0:80}:80"
+      - "${DIRECT_HTTPS_BIND:-0.0.0.0:443}:443"
+
+networks:
+  # Proxy, storefront and backend. Containers here can reach the internet.
+  web:
+    driver: bridge
+  # PostgreSQL, Redis and the backend. No route out, nothing published.
+  data:
+    driver: bridge
+    internal: true
+
+volumes:
+  # The store's data. Backed up by ops/backup.sh.
+  postgres-data:
+  # Queues and sessions. Not backed up; see docs/backup-and-restore.md.
+  redis-data:
+  # Certificates and Caddy's own state (direct mode). Re-created if lost.
+  caddy-data:
+  caddy-config:
+  # Uploaded files, used only while no S3 bucket is configured. Production
+  # stores media in R2, and this volume is not backed up.
+  medusa-uploads:

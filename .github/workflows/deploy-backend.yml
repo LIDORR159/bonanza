@@ -1,0 +1,145 @@
+# Deploy to the server: NOT BUILT YET. THIS WORKFLOW DEPLOYS NOTHING.
+#
+# It can only be started by hand, by the repository owner, from the default
+# branch. Today it checks the two image references the way the server would,
+# prints the request it would send, and stops. There is no server, no host
+# name and no credential for one, and none is referred to below.
+#
+# MANUAL ONLY, ON PURPOSE. A deployment replaces what customers are using, the
+# plan has no protected environments or required reviewers to put in front of
+# it, and the images it takes are built by hand as well (images.yml: GHCR's
+# 500 MB allowance holds about two pairs of images).
+#
+# ── The open point ───────────────────────────────────────────────────────────
+#
+# The server's SSH port will accept one address only: the administrator's. A
+# GitHub-hosted runner comes from a large, shared, changing pool of addresses,
+# so it cannot connect, and that pool must not be let in.
+#
+# ── The path proposed (to be approved before anything is built) ──────────────
+#
+# SSH through the Cloudflare Tunnel the server already keeps open in
+# production, behind a Cloudflare Access application that admits one service
+# token and nothing else.
+#
+#   runner ── cloudflared (as SSH ProxyCommand, with the service token)
+#          ── Cloudflare Access ── the tunnel ── sshd on the server
+#          ── ops/ssh-deploy-entrypoint.sh
+#
+# Why this one:
+#   - Port 22 stays closed to the internet. Nothing new listens on the server.
+#   - Two separate credentials are needed and neither is enough alone: the
+#     Access service token gets a connection as far as sshd, and the deploy
+#     key signs in. Each can be revoked on its own.
+#   - The deploy key cannot open a shell. sshd forces it through
+#     ops/ssh-deploy-entrypoint.sh, which accepts exactly `deploy <backend>
+#     <storefront>` for the two fixed image names, or `rollback`.
+#   - The run sees the deployment's own output and exit code (0 deployed,
+#     10 failed and rolled back, 11 needs attention).
+#
+# What it would need, none of which exists: the tunnel and an Access
+# application for an SSH hostname (infrastructure/cloudflare/README.md), an
+# Access service token, a dedicated SSH key pair whose public half is installed
+# with the forced command (docs/oracle-deployment.md, "Deployments from CI"),
+# the server's SSH host key pinned in the workflow, and a way for the tunnel's
+# container to reach the host's sshd. The last part has not been designed or
+# tested. It does not exist in `direct` ingress mode, where there is no tunnel.
+#
+# The alternative, if GitHub should hold no credential for the server at all:
+# a timer on the server that asks the registry which version to run and calls
+# ops/deploy.sh itself. Nothing inbound, but it needs a new script on the
+# server, a deployment is delayed by the polling interval, and its result does
+# not come back to GitHub.
+#
+# Ruled out: opening port 22 to GitHub's address ranges, and a self-hosted
+# runner on the server (it would hold Docker, which is root on that machine,
+# and run whatever a workflow file says).
+#
+# Until one of these is approved and built, deploy by hand over SSH:
+#   /opt/bonanza/ops/deploy.sh <backend-ref> <storefront-ref>
+
+name: Deploy backend (inert)
+
+on:
+  workflow_dispatch:
+    inputs:
+      request:
+        description: "What to ask the server for"
+        required: true
+        default: deploy
+        type: choice
+        options:
+          - deploy
+          - rollback
+      backend_image:
+        description: "ghcr.io/lidorr159/bonanza-backend@sha256:<digest> (from the Images run)"
+        required: false
+        default: ""
+        type: string
+      storefront_image:
+        description: "ghcr.io/lidorr159/bonanza-storefront@sha256:<digest> (from the Images run)"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+# One deployment at a time, and a second one waits instead of cancelling the first.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: Check the request (nothing is deployed)
+    if: ${{ github.actor == github.repository_owner && github.ref_name == github.event.repository.default_branch }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      # The same rules as ops/ssh-deploy-entrypoint.sh, narrowed to digests:
+      # a tag can be moved after it was reviewed, a digest cannot.
+      - name: Check the image references
+        env:
+          REQUEST: ${{ inputs.request }}
+          BACKEND_IMAGE: ${{ inputs.backend_image }}
+          STOREFRONT_IMAGE: ${{ inputs.storefront_image }}
+        run: |
+          if [[ "$REQUEST" == "rollback" ]]; then
+            echo "A rollback takes no image references."
+            exit 0
+          fi
+          digest='@sha256:[a-f0-9]{64}'
+          if [[ ! "$BACKEND_IMAGE" =~ ^ghcr\.io/lidorr159/bonanza-backend${digest}$ ]]; then
+            echo "::error::backend_image must be ghcr.io/lidorr159/bonanza-backend@sha256:<64 hex digits>"
+            exit 1
+          fi
+          if [[ ! "$STOREFRONT_IMAGE" =~ ^ghcr\.io/lidorr159/bonanza-storefront${digest}$ ]]; then
+            echo "::error::storefront_image must be ghcr.io/lidorr159/bonanza-storefront@sha256:<64 hex digits>"
+            exit 1
+          fi
+          echo "Both references are pinned by digest and name the expected images."
+
+      - name: Say what would be sent, and stop
+        env:
+          REQUEST: ${{ inputs.request }}
+          BACKEND_IMAGE: ${{ inputs.backend_image }}
+          STOREFRONT_IMAGE: ${{ inputs.storefront_image }}
+        run: |
+          if [[ "$REQUEST" == "rollback" ]]; then
+            request="rollback"
+          else
+            request="deploy $BACKEND_IMAGE $STOREFRONT_IMAGE"
+          fi
+          {
+            echo "### Nothing was deployed"
+            echo
+            echo "This workflow is not connected to any server. The request it would send to \`ops/ssh-deploy-entrypoint.sh\` is:"
+            echo
+            echo '```'
+            echo "$request"
+            echo '```'
+            echo
+            echo "To deploy now, run \`/opt/bonanza/ops/deploy.sh\` on the server by hand. See the comment at the top of \`.github/workflows/deploy-backend.yml\` for what has to be approved and built first."
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "::notice title=Nothing was deployed::deploy-backend.yml is inert until the deployment path is approved and built."

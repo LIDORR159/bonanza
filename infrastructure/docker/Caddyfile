@@ -1,0 +1,223 @@
+# BONANZA reverse proxy.
+#
+# Three hostnames, one job each:
+#
+#   STOREFRONT_HOST   the shop                      -> storefront:8000
+#   API_HOST          the public part of the API    -> medusa-server:9000
+#   DASHBOARD_HOST    the admin dashboard and API   -> medusa-server:9000
+#
+# Every value comes from the container's environment, which compose.prod.yaml
+# fills in from .env. Nothing here names a real domain.
+#
+#   SITE_SCHEME         "http" in tunnel mode: Cloudflare ends TLS and
+#                       cloudflared hands requests to port 80 in plain HTTP.
+#                       "https" in direct mode: Caddy obtains a certificate for
+#                       each hostname and redirects port 80 to 443.
+#                       Set by the Compose service, not in .env.
+#   CADDY_TLS           direct mode only. "public" (the default): a public
+#                       certificate per hostname. "internal": certificates
+#                       from Caddy's own authority, for a trial on a
+#                       development machine.
+#   STOREFRONT_WWW_HOST optional second name of the shop; it only redirects.
+#
+# Check a change before using it:
+#   docker run --rm -v "$PWD/Caddyfile:/etc/caddy/Caddyfile:ro" \
+#     -e SITE_SCHEME=http -e STOREFRONT_HOST=shop.example.com \
+#     -e API_HOST=api.example.com -e DASHBOARD_HOST=dashboard.example.com \
+#     caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile
+{
+	servers {
+		# Who the visitor is. The peer that connects to Caddy is trusted to
+		# name the visitor only when it is on a private network: that is
+		# cloudflared in tunnel mode, and it passes on what Cloudflare saw
+		# (CF-Connecting-IP). A visitor who connects directly (direct mode)
+		# is never on a private network, so a header they send is ignored
+		# and their own address is used.
+		trusted_proxies static private_ranges
+		trusted_proxies_strict
+		client_ip_headers CF-Connecting-IP X-Forwarded-For
+
+		# HTTP/3 needs UDP 443, which neither ingress mode opens.
+		protocols h1 h2
+
+		timeouts {
+			read_header 10s
+			idle 2m
+		}
+	}
+}
+
+# ── Shared pieces ────────────────────────────────────────────────────────────
+
+(base) {
+	encode zstd gzip
+
+	header {
+		# Browsers always reach these hosts over HTTPS (Cloudflare's edge, or
+		# Caddy itself in direct mode).
+		Strict-Transport-Security "max-age=31536000"
+		# "?" sets a header only when the application did not send it, so
+		# nothing is sent twice. Next.js and Medusa both send these already.
+		?X-Content-Type-Options "nosniff"
+		?X-Frame-Options "SAMEORIGIN"
+		?Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+		-Via
+		-X-Powered-By
+	}
+
+	# One JSON line per request on stdout (Docker rotates the file). Query
+	# strings are cut off: preview and payment-page links carry tokens there.
+	log {
+		output stdout
+		format filter {
+			wrap json
+			fields {
+				request>uri regexp "\?.*$" ""
+			}
+		}
+	}
+}
+
+# Machine-facing hosts are not for search engines.
+(not_indexed) {
+	header X-Robots-Tag "noindex, nofollow"
+}
+
+# What the applications are told about the visitor: one address, the one
+# established above. Anything the client claimed about itself is replaced.
+(to_storefront) {
+	reverse_proxy storefront:8000 {
+		header_up X-Forwarded-For {client_ip}
+		header_up X-Real-IP {client_ip}
+		header_up CF-Connecting-IP {client_ip}
+		# Hold a request briefly instead of failing it while the container
+		# is being replaced during a deployment.
+		lb_try_duration 15s
+		lb_try_interval 500ms
+	}
+}
+
+(to_medusa) {
+	reverse_proxy medusa-server:9000 {
+		header_up X-Forwarded-For {client_ip}
+		header_up X-Real-IP {client_ip}
+		header_up CF-Connecting-IP {client_ip}
+		lb_try_duration 15s
+		lb_try_interval 500ms
+	}
+}
+
+(not_found) {
+	respond "Not Found" 404
+}
+
+# Certificates in direct mode, chosen by CADDY_TLS. Unused in tunnel mode.
+(tls_public) {
+	# Nothing to add: Caddy obtains a public certificate for each hostname
+	# by itself and renews it.
+}
+
+(tls_internal) {
+	tls internal
+}
+
+# ── Storefront ───────────────────────────────────────────────────────────────
+
+{$SITE_SCHEME:http}://{$STOREFRONT_HOST:storefront.invalid} {
+	import base
+	import tls_{$CADDY_TLS:public}
+
+	# Forms and server actions only; nothing is uploaded here.
+	request_body {
+		max_size 2MB
+	}
+
+	# The backend calls this endpoint over the private network
+	# (STOREFRONT_INTERNAL_URL). It has no business being reachable from
+	# outside.
+	@internal_only path /api/revalidate /api/revalidate/*
+	handle @internal_only {
+		import not_found
+	}
+
+	handle {
+		import to_storefront
+	}
+}
+
+# Optional second name (www). Plain HTTP on purpose: in tunnel mode Cloudflare
+# serves the HTTPS side, and no certificate is requested for a name that may
+# not exist. Unset, it matches nothing.
+http://{$STOREFRONT_WWW_HOST:www.invalid} {
+	redir https://{$STOREFRONT_HOST:storefront.invalid}{uri} permanent
+}
+
+# ── Public API ───────────────────────────────────────────────────────────────
+# An allowlist. Only what shoppers, the storefront and payment providers need
+# is passed on; the admin API, the dashboard, admin sign-in (/auth/user/*) and
+# everything not named here answer 404 on this hostname.
+
+{$SITE_SCHEME:http}://{$API_HOST:api.invalid} {
+	import base
+	import not_indexed
+	import tls_{$CADDY_TLS:public}
+
+	request_body {
+		max_size 2MB
+	}
+
+	@public path /health /store /store/* /auth/customer/* /auth/session /auth/token/refresh /hooks/* /static/* /dev-gateway/pay/*
+	handle @public {
+		import to_medusa
+	}
+
+	handle {
+		import not_found
+	}
+}
+
+# ── Dashboard ────────────────────────────────────────────────────────────────
+# The admin UI (/app) and the Admin API it calls on the same origin. Shopper
+# and webhook routes are refused here. Put Cloudflare Access in front of this
+# hostname (infrastructure/cloudflare/README.md).
+
+{$SITE_SCHEME:http}://{$DASHBOARD_HOST:dashboard.invalid} {
+	import base
+	import not_indexed
+	import tls_{$CADDY_TLS:public}
+
+	redir / /app 302
+
+	@refused path /store /store/* /hooks /hooks/* /dev-gateway /dev-gateway/*
+	handle @refused {
+		import not_found
+	}
+
+	# Image uploads: the backend accepts up to 12 files of 8 MB in one
+	# request and checks each file itself. This limit only has to be above
+	# that total (and is also Cloudflare's own ceiling on the Free plan).
+	@uploads path /admin/uploads /admin/uploads/*
+	handle @uploads {
+		request_body {
+			max_size 100MB
+		}
+		import to_medusa
+	}
+
+	handle {
+		request_body {
+			max_size 10MB
+		}
+		import to_medusa
+	}
+}
+
+# ── Everything else on port 80 ───────────────────────────────────────────────
+# An unknown hostname gets nothing. /healthz is what the container's own
+# health check asks for.
+
+http:// {
+	respond /healthz "ok" 200
+	import not_found
+}

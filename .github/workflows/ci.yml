@@ -1,0 +1,88 @@
+# CI: install, lint, build both applications, typecheck, unit tests.
+#
+# Runs on pull requests and on pushes to main. It uses no secret at all, so a
+# pull request (including one from a fork) cannot reach any: the trigger is
+# `pull_request`, never `pull_request_target`, and the token is read-only.
+#
+# Minutes: this repository is private on GitHub Free, so every run draws on the
+# monthly Actions allowance. One job instead of several keeps the install to
+# once per run, newer pushes cancel older runs, and changes that cannot affect
+# the applications do not start a run.
+#
+# Actions are pinned to full commit SHAs. The comment after each is the release
+# tag that commit carried when it was looked up (2026-11-23).
+
+name: CI
+
+on:
+  pull_request:
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "infrastructure/**"
+      - "logos/**"
+      - "photos-examples/**"
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "infrastructure/**"
+      - "logos/**"
+      - "photos-examples/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  # No usage statistics from CI.
+  DO_NOT_TRACK: "1"
+  TURBO_TELEMETRY_DISABLED: "1"
+  NEXT_TELEMETRY_DISABLED: "1"
+  MEDUSA_DISABLE_TELEMETRY: "true"
+
+jobs:
+  check:
+    name: Lint, build, typecheck, test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Reads the pnpm version from "packageManager" in package.json.
+      - name: Install pnpm
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+
+      - name: Install Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      # Neither build needs a database, a running backend or any setting.
+      - name: Build the backend and the storefront
+        run: pnpm build
+
+      # After the build on purpose: the backend's tsconfig includes
+      # .medusa/types, which `medusa build` generates, and the storefront's
+      # includes .next/types.
+      - name: Typecheck
+        run: pnpm typecheck
+
+      # Unit tests of the storefront (Vitest) and the backend (Jest). The browser
+      # suite is not part of this: it needs the whole stack and runs in e2e.yml.
+      - name: Unit tests
+        run: pnpm test

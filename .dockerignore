@@ -1,0 +1,57 @@
+# Build context for infrastructure/docker/*.Dockerfile (context = repository root).
+#
+# This is an allowlist: everything is left out, then only what the image
+# builds read is let back in. A new file at the repository root therefore
+# never reaches a build (or an image layer) by accident, env files included.
+
+*
+
+# Workspace manifests and the lockfile.
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!.npmrc
+
+# Sources of the two applications and the shared packages.
+!apps
+!packages
+
+# Only the manifest of the test workspace: pnpm wants every workspace
+# project named in the lockfile to exist.
+!e2e/package.json
+
+# Never part of a build, wherever they are.
+**/node_modules
+**/.next
+**/.medusa
+**/.open-next
+**/.wrangler
+**/.turbo
+**/.vercel
+**/coverage
+**/*.log
+**/*.tsbuildinfo
+**/.DS_Store
+
+# Secrets and local settings. The images read every setting at run time.
+**/.env
+**/.env.*
+**/.dev.vars
+**/*.pem
+**/*.key
+
+# Local uploads and tests that the images do not use.
+apps/backend/static
+apps/backend/uploads
+apps/backend/integration-tests
+
+# Seed pictures. The demo catalog's product images stay out. The pictures in
+# seed-assets/site go into the backend image: the starter-content seed
+# (src/scripts/seed-content) uploads hero.jpg and about.jpg on a first
+# install, and `medusa build` does not copy pictures by itself.
+apps/backend/src/scripts/seed-assets/*
+!apps/backend/src/scripts/seed-assets/site
+apps/backend/src/scripts/seed-assets/site/*.mjs
+
+# Local folders shielded from iCloud Drive (scripts/shield-from-icloud.mjs)
+**/*.nosync
