@@ -156,7 +156,9 @@ export function Footer({
                 src={map}
                 title={t.contact.mapTitle}
                 loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
+                // Google is never told which page the map sits on: some
+                // addresses carry a password-reset token or an order id.
+                referrerPolicy="no-referrer"
                 allowFullScreen
                 // Tints Google's light map to sit in the dark page.
                 className="block h-60 w-full border-0 [filter:grayscale(1)_invert(0.92)_contrast(0.9)]"

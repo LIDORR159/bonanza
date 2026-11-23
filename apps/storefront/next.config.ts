@@ -33,8 +33,13 @@ const nextConfig: NextConfig = {
       { protocol: "https" as const, hostname },
       { protocol: "http" as const, hostname },
     ]),
-    // Local development serves images from http://localhost:9000.
-    dangerouslyAllowLocalIP: process.env.NODE_ENV !== "production",
+    // Next.js refuses to fetch an image from a private address, which stops
+    // the optimizer being used to reach into an internal network. Development
+    // serves images from http://localhost:9000, so it is allowed there, and in
+    // a production build only when IMAGES_ALLOW_LOCAL=true is set at build
+    // time: that is for testing a production build against a local backend.
+    dangerouslyAllowLocalIP:
+      process.env.NODE_ENV !== "production" || process.env.IMAGES_ALLOW_LOCAL === "true",
     formats: ["image/avif", "image/webp"],
     qualities: [75, 85],
   },
@@ -42,9 +47,13 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },
+      // Never let a shared cache keep personal pages, in any language.
       {
-        // Never let a shared cache keep personal pages.
         source: "/:path(cart|checkout|account|order)/:rest*",
+        headers: [{ key: "Cache-Control", value: "private, no-store" }],
+      },
+      {
+        source: "/:locale(en|ar)/:path(cart|checkout|account|order)/:rest*",
         headers: [{ key: "Cache-Control", value: "private, no-store" }],
       },
     ]

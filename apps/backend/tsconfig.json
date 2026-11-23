@@ -17,7 +17,10 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "checkJs": false,
-    "strictNullChecks": true
+    "strictNullChecks": true,
+    // TypeScript no longer picks up every @types package by itself; `jest`
+    // gives the unit tests their `describe`, `it` and `expect`.
+    "types": ["node", "jest"]
   },
   "ts-node": {
     "swc": true

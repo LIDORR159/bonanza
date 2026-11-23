@@ -44,7 +44,8 @@ test.describe("admin access", () => {
     await page.goto(`${ADMIN}/content`)
     await expect(page).toHaveURL(/\/app\/login/)
 
-    // The Admin API refuses anonymous requests and customer tokens alike.
+    // The Admin API refuses anonymous requests. Customer tokens are covered
+    // in admin-barbershop.spec.ts.
     expect((await request.get(`${BACKEND_URL}/admin/cms/banners`)).status()).toBe(401)
     expect((await request.get(`${BACKEND_URL}/admin/products`)).status()).toBe(401)
   })

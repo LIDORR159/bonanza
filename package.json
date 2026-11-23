@@ -18,7 +18,7 @@
     "storefront:dev": "turbo dev --filter=@bonanza/storefront",
     "db:migrate": "pnpm --filter @bonanza/backend run db:migrate",
     "db:seed": "pnpm --filter @bonanza/backend run seed:demo",
-    "e2e": "pnpm --filter @bonanza/e2e run test",
+    "e2e": "pnpm --filter @bonanza/e2e run e2e",
     "format": "prettier --write ."
   },
   "devDependencies": {

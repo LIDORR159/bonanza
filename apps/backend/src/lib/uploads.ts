@@ -50,7 +50,13 @@ type UploadedFile = { mimetype?: string; size?: number; buffer?: Uint8Array; ori
 const reject = (res: MedusaResponse, status: number, message: string) =>
   res.status(status).json({ type: "invalid_data", message })
 
-/** Refuses oversized requests before the body is read into memory. */
+/**
+ * Refuses a request whose declared size is over the limit, from its
+ * Content-Length header alone. Medusa's own upload middleware is registered
+ * ahead of this one and may already have buffered the body, so this is a
+ * limit on what gets stored, not a memory guard; the reverse proxy's body
+ * limit is what keeps large uploads away from the process.
+ */
 export function limitUploadSize(
   req: MedusaRequest,
   res: MedusaResponse,

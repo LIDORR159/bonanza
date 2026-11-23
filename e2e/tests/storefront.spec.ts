@@ -176,7 +176,17 @@ test("temporary URLs are kept out of search engines", async ({ page, request }) 
 })
 
 test("personal pages are never cacheable", async ({ request }) => {
-  for (const path of ["/cart", "/checkout", "/account/login", "/api/cart"]) {
+  // Meaningful against a production build (`next start` or the Docker image);
+  // the development server sends `no-store` on every page.
+  for (const path of [
+    "/cart",
+    "/checkout",
+    "/account/login",
+    "/api/cart",
+    "/en/cart",
+    "/en/checkout",
+    "/ar/account/login",
+  ]) {
     const response = await request.get(path, { maxRedirects: 0 })
     expect(response.headers()["cache-control"], path).toMatch(/no-store/)
   }
