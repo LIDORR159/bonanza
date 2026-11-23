@@ -1,0 +1,23 @@
+# Restores the newest backup into a throwaway PostgreSQL and checks it.
+# Started by bonanza-restore-verify.timer. Run it by hand with:
+#   sudo systemctl start bonanza-restore-verify.service
+#   journalctl -u bonanza-restore-verify.service -n 100
+[Unit]
+Description=BONANZA restore verification (proves the newest backup can be restored)
+Documentation=file:///opt/bonanza/ops/restore-verify.sh
+Wants=network-online.target
+After=network-online.target docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=bonanza
+Group=bonanza
+WorkingDirectory=/opt/bonanza
+ExecStart=/opt/bonanza/ops/restore-verify.sh
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+TimeoutStartSec=2h
+NoNewPrivileges=true
+PrivateTmp=true

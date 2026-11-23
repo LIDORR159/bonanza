@@ -1,0 +1,14 @@
+# Daily at 02:30 Israel time, one hour before the 03:30 window in which
+# unattended-upgrades may reboot the server.
+[Unit]
+Description=BONANZA backup, daily at 02:30 Asia/Jerusalem
+
+[Timer]
+OnCalendar=*-*-* 02:30:00 Asia/Jerusalem
+# If the server was off at 02:30, run as soon as it is back.
+Persistent=true
+AccuracySec=1min
+Unit=bonanza-backup.service
+
+[Install]
+WantedBy=timers.target

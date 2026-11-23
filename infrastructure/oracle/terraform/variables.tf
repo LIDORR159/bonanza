@@ -26,7 +26,7 @@ variable "region" {
   type        = string
 
   validation {
-    condition     = can(regex("^[a-z]{2,3}-[a-z]+-[0-9]+$", var.region))
+    condition     = can(regex("^[a-z]{2,3}(-[a-z]+)+-[0-9]+$", var.region))
     error_message = "region must be a region identifier such as il-jerusalem-1."
   }
 }

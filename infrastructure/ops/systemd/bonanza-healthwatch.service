@@ -1,0 +1,17 @@
+# Checks the stack, disks, backup age and memory; alerts on change.
+# Started by bonanza-healthwatch.timer. See the latest results with:
+#   journalctl -u bonanza-healthwatch.service -n 50
+[Unit]
+Description=BONANZA health watch (services, disk, backups, memory, pending reboot)
+Documentation=file:///opt/bonanza/ops/healthwatch.sh
+After=docker.service
+
+[Service]
+Type=oneshot
+User=bonanza
+Group=bonanza
+WorkingDirectory=/opt/bonanza
+ExecStart=/opt/bonanza/ops/healthwatch.sh
+TimeoutStartSec=3min
+NoNewPrivileges=true
+PrivateTmp=true

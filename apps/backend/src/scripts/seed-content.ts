@@ -141,12 +141,7 @@ export default async function seedContent({ container }: ExecArgs) {
         secondary_cta_label: "האקדמיה",
         secondary_cta_url: "/academy",
       },
-      {
-        type: "categories" as const,
-        key: "categories",
-        title: "קטגוריות",
-        settings: { limit: 8 },
-      },
+      // Directly after the hero, so its cards overlap the hero's bottom edge.
       {
         type: "product_rail" as const,
         key: "featured",
@@ -157,6 +152,12 @@ export default async function seedContent({ container }: ExecArgs) {
           product_source: { type: "tag", id: tagIds.get("featured")! },
           limit: 4,
         },
+      },
+      {
+        type: "categories" as const,
+        key: "categories",
+        title: "קטגוריות",
+        settings: { limit: 8 },
       },
       {
         type: "banner_slot" as const,

@@ -1,0 +1,12 @@
+# Weekly, Saturday 05:30 Israel time.
+[Unit]
+Description=BONANZA Docker cleanup, weekly on Saturday at 05:30 Asia/Jerusalem
+
+[Timer]
+OnCalendar=Sat *-*-* 05:30:00 Asia/Jerusalem
+Persistent=true
+AccuracySec=1min
+Unit=bonanza-docker-prune.service
+
+[Install]
+WantedBy=timers.target

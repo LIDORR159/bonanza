@@ -1,0 +1,18 @@
+{
+  "name": "@bonanza/e2e",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "End-to-end tests and reference screenshots for the BONANZA storefront and admin.",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "screenshots": "node scripts/screenshot.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "@types/node": "^24.0.0",
+    "typescript": "^6.0.3"
+  }
+}

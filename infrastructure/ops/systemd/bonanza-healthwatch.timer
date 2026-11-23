@@ -1,0 +1,13 @@
+# Every 5 minutes. The first run is 5 minutes after boot, so containers have
+# time to start after a reboot before they are judged.
+[Unit]
+Description=BONANZA health watch, every 5 minutes
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=5min
+AccuracySec=30s
+Unit=bonanza-healthwatch.service
+
+[Install]
+WantedBy=timers.target

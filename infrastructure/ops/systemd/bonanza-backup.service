@@ -1,0 +1,24 @@
+# Encrypted off-site backup of the database and the server configuration.
+# Started by bonanza-backup.timer. Run it by hand with:
+#   sudo systemctl start bonanza-backup.service
+#   journalctl -u bonanza-backup.service -n 100
+[Unit]
+Description=BONANZA backup (PostgreSQL and configuration, restic to off-site storage)
+Documentation=file:///opt/bonanza/ops/backup.sh
+Wants=network-online.target
+After=network-online.target docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=bonanza
+Group=bonanza
+WorkingDirectory=/opt/bonanza
+ExecStart=/opt/bonanza/ops/backup.sh
+# A backup must never compete with the store for CPU or disk.
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+TimeoutStartSec=2h
+NoNewPrivileges=true
+PrivateTmp=true

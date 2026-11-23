@@ -11,8 +11,14 @@ export const escapeHtml = (value: unknown): string =>
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]!
   )
 
+const numberFormatter = new Intl.NumberFormat("he-IL", {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 2,
+})
+
+/** `₪1,234.5`: the same form the storefront shows. Render inside dir="ltr". */
 export const formatIls = (amount: number): string =>
-  new Intl.NumberFormat("he-IL", { style: "currency", currency: "ILS" }).format(amount)
+  `${amount < 0 ? "-" : ""}₪${numberFormatter.format(Math.abs(amount))}`
 
 export function button(label: string, url: string): string {
   return `<p style="margin:28px 0"><a href="${escapeHtml(url)}" style="display:inline-block;background:#111213;color:#ffffff;text-decoration:none;font-weight:700;padding:13px 26px;border-radius:6px">${escapeHtml(label)}</a></p>`

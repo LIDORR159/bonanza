@@ -1,0 +1,343 @@
+#cloud-config
+#
+# First-boot setup for the BONANZA VM: Canonical Ubuntu 24.04, ARM64, on an
+# Oracle Cloud Ampere A1 instance.
+#
+# THIS FILE IS A TERRAFORM TEMPLATE. terraform/compute.tf renders it with
+# templatefile() and hands the result to the instance as user data. Terraform
+# fills in three values: admin_user, ssh_public_key and ingress_mode. They are
+# the only dollar-brace expressions in this file. If you ever need a literal
+# dollar-brace in a script below, write it with two dollar signs, otherwise
+# Terraform will try to interpret it.
+#
+# cloud-init runs this once, on the first boot of a new instance. Editing the
+# file later does not change a VM that already exists.
+#
+# What happens, in order:
+#   1. cloud-init modules: timezone, users, SSH settings, swap file, config
+#      files (write_files), apt package installation.
+#   2. runcmd: /usr/local/sbin/bonanza-first-boot.sh, which installs Docker,
+#      applies the settings written in step 1 and, in "direct" mode only,
+#      opens ports 80 and 443 in the host firewall.
+#
+# To check the result after the first boot:
+#   cloud-init status --long
+#   sudo tail -n 60 /var/log/cloud-init-output.log
+
+# ── Time ─────────────────────────────────────────────────────────────────────
+# Local time decides when the automatic reboot (03:30) and the backup timer run.
+timezone: Asia/Jerusalem
+
+# ── Users ────────────────────────────────────────────────────────────────────
+# "default" keeps the image's own user "ubuntu", which receives the same SSH
+# key from the instance metadata. It is a second way in if the admin user is
+# ever broken. The admin user owns /opt/bonanza and runs every ops script.
+# It has no password (key sign-in only), so sudo cannot ask for one.
+users:
+  - default
+  - name: ${admin_user}
+    gecos: BONANZA administrator
+    shell: /bin/bash
+    groups: [sudo]
+    sudo: "ALL=(ALL) NOPASSWD:ALL"
+    lock_passwd: true
+    ssh_authorized_keys:
+      - "${ssh_public_key}"
+
+# ── SSH ──────────────────────────────────────────────────────────────────────
+# No password sign-in, no root sign-in. The drop-in file under write_files
+# says the same thing to sshd directly, so it does not depend on cloud-init.
+ssh_pwauth: false
+disable_root: true
+
+# ── Swap ─────────────────────────────────────────────────────────────────────
+# A 2 GB swap file as a cushion against short memory spikes (image builds are
+# not done here, but migrations and restores can peak). cloud-init creates the
+# file, turns it on and adds it to /etc/fstab. It skips the step if the file
+# already exists.
+swap:
+  filename: /swapfile
+  size: 2G
+  maxsize: 2G
+
+# ── Packages from Ubuntu ─────────────────────────────────────────────────────
+# Docker is NOT in this list: it comes from Docker's own apt repository and is
+# installed by the script below.
+#
+# UFW is deliberately not installed, enabled or configured. Oracle's Ubuntu
+# images ship their firewall as iptables rules in /etc/iptables/rules.v4,
+# loaded by netfilter-persistent, and Oracle warns that enabling UFW on these
+# images can make the instance unbootable (the rules that reach the boot
+# volume over iSCSI must stay in place).
+package_update: true
+package_upgrade: true
+packages:
+  - ca-certificates
+  - curl
+  - jq
+  - restic
+  - fail2ban
+  - python3-systemd # lets fail2ban read the systemd journal
+  - unattended-upgrades
+
+# ── Configuration files ──────────────────────────────────────────────────────
+write_files:
+  # sshd reads drop-ins in name order and the first value wins, so "00-" makes
+  # these settings take precedence over the image's own drop-ins.
+  - path: /etc/ssh/sshd_config.d/00-bonanza-hardening.conf
+    owner: root:root
+    permissions: "0644"
+    content: |
+      # Managed by cloud-init (infrastructure/oracle/cloud-init.yaml).
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      PermitRootLogin no
+      PubkeyAuthentication yes
+      X11Forwarding no
+
+  # Docker daemon settings (JSON cannot hold comments, so they are here):
+  #  - json-file logs, rotated at 10 MB, 5 files per container, so container
+  #    logs can never fill the disk (at most 50 MB each).
+  #  - live-restore: containers keep running while the Docker daemon itself
+  #    is restarted or upgraded.
+  #  - No "hosts" entry: the daemon listens on its local Unix socket only.
+  #    There is no TCP socket, so Docker cannot be reached over the network.
+  - path: /etc/docker/daemon.json
+    owner: root:root
+    permissions: "0644"
+    content: |
+      {
+        "log-driver": "json-file",
+        "log-opts": {
+          "max-size": "10m",
+          "max-file": "5"
+        },
+        "live-restore": true
+      }
+
+  # Redis forks to save its data and warns (and can fail the save) unless the
+  # kernel is allowed to overcommit memory.
+  - path: /etc/sysctl.d/60-bonanza.conf
+    owner: root:root
+    permissions: "0644"
+    content: |
+      # Managed by cloud-init (infrastructure/oracle/cloud-init.yaml).
+      vm.overcommit_memory = 1
+
+  # Turn the daily unattended-upgrades run on. Ubuntu's default list of
+  # allowed origins (the security pocket) is left as shipped, so only security
+  # updates from Ubuntu are installed automatically. Docker's repository is
+  # not in that list: Docker itself is upgraded by hand.
+  - path: /etc/apt/apt.conf.d/20auto-upgrades
+    owner: root:root
+    permissions: "0644"
+    content: |
+      // Managed by cloud-init (infrastructure/oracle/cloud-init.yaml).
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+      APT::Periodic::AutocleanInterval "7";
+
+  # When an update needs a reboot (a new kernel, for example), reboot at 03:30
+  # local time, even if somebody is signed in.
+  - path: /etc/apt/apt.conf.d/52bonanza-unattended-upgrades
+    owner: root:root
+    permissions: "0644"
+    content: |
+      // Managed by cloud-init (infrastructure/oracle/cloud-init.yaml).
+      Unattended-Upgrade::Automatic-Reboot "true";
+      Unattended-Upgrade::Automatic-Reboot-WithUsers "true";
+      Unattended-Upgrade::Automatic-Reboot-Time "03:30";
+      Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
+      Unattended-Upgrade::Remove-Unused-Dependencies "true";
+
+  # fail2ban: ban an address for an hour after 5 failed SSH sign-ins within
+  # 10 minutes. Port 22 is also restricted to the administrator's address by
+  # the cloud network security group; this is the second layer.
+  - path: /etc/fail2ban/jail.d/bonanza.local
+    owner: root:root
+    permissions: "0644"
+    content: |
+      # Managed by cloud-init (infrastructure/oracle/cloud-init.yaml).
+      [DEFAULT]
+      bantime = 1h
+      findtime = 10m
+      maxretry = 5
+
+      [sshd]
+      enabled = true
+      backend = systemd
+
+  # The first-boot script. Kept on the VM so it can be read and re-run:
+  #   sudo /usr/local/sbin/bonanza-first-boot.sh            (same ingress mode)
+  #   sudo /usr/local/sbin/bonanza-first-boot.sh direct     (switch the host firewall to direct)
+  - path: /usr/local/sbin/bonanza-first-boot.sh
+    owner: root:root
+    permissions: "0750"
+    content: |
+      #!/usr/bin/env bash
+      # BONANZA first-boot setup. Written and run once by cloud-init.
+      # Safe to run again by hand: each step checks before it changes anything.
+      set -euo pipefail
+
+      ADMIN_USER="${admin_user}"
+      INGRESS_MODE="${ingress_mode}"
+      # An optional first argument overrides the ingress mode baked in above.
+      if [ "$#" -ge 1 ]; then
+        INGRESS_MODE="$1"
+      fi
+      case "$INGRESS_MODE" in
+        tunnel | direct) ;;
+        *)
+          echo "ERROR: ingress mode must be 'tunnel' or 'direct', got '$INGRESS_MODE'" >&2
+          exit 2
+          ;;
+      esac
+
+      if [ "$(id -u)" -ne 0 ]; then
+        echo "ERROR: run this script as root (sudo)" >&2
+        exit 2
+      fi
+
+      export DEBIAN_FRONTEND=noninteractive
+
+      step() { printf '\n==> %s\n' "$*"; }
+
+      # Waits for other apt/dpkg runs (for example unattended-upgrades) instead
+      # of failing when the package database is locked.
+      apt_get() { apt-get -o DPkg::Lock::Timeout=600 -y "$@"; }
+
+      # ── 1. Docker Engine and the Compose plugin ────────────────────────────
+      # Installed from Docker's official apt repository, as documented at
+      # https://docs.docker.com/engine/install/ubuntu/ . The architecture is
+      # read from dpkg, which reports arm64 on Ampere A1.
+      step "Docker Engine and Compose plugin (Docker's apt repository)"
+      install -m 0755 -d /etc/apt/keyrings
+      if [ ! -s /etc/apt/keyrings/docker.asc ]; then
+        curl -fsSL --retry 5 --retry-delay 5 \
+          https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc.tmp
+        mv /etc/apt/keyrings/docker.asc.tmp /etc/apt/keyrings/docker.asc
+        chmod a+r /etc/apt/keyrings/docker.asc
+      fi
+      if [ ! -s /etc/apt/sources.list.d/docker.sources ]; then
+        # shellcheck disable=SC1091
+        . /etc/os-release
+        printf '%s\n' \
+          "Types: deb" \
+          "URIs: https://download.docker.com/linux/ubuntu" \
+          "Suites: $VERSION_CODENAME" \
+          "Components: stable" \
+          "Architectures: $(dpkg --print-architecture)" \
+          "Signed-By: /etc/apt/keyrings/docker.asc" \
+          >/etc/apt/sources.list.d/docker.sources
+      fi
+      apt_get update
+      # /etc/docker/daemon.json already exists (written by cloud-init), so the
+      # daemon starts with log rotation and live-restore from its first run.
+      apt_get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+      systemctl enable --now docker
+      # Members of the docker group can control Docker without sudo. That is
+      # equivalent to root on this machine; only the admin user is added.
+      usermod -aG docker "$ADMIN_USER"
+      docker --version
+      docker compose version
+
+      # ── 2. Application directory ───────────────────────────────────────────
+      step "/opt/bonanza owned by $ADMIN_USER, mode 700"
+      install -d -o "$ADMIN_USER" -g "$ADMIN_USER" -m 0700 /opt/bonanza
+
+      # ── 3. Kernel setting for Redis ────────────────────────────────────────
+      step "vm.overcommit_memory = 1"
+      sysctl --system >/dev/null
+      sysctl vm.overcommit_memory
+
+      # ── 4. SSH: key sign-in only, no root ──────────────────────────────────
+      # The drop-in is tested before sshd is restarted. If the test fails the
+      # drop-in is set aside, so a bad file can never lock everybody out.
+      step "SSH hardening"
+      mkdir -p /run/sshd
+      if sshd -t; then
+        systemctl restart ssh
+      else
+        mv /etc/ssh/sshd_config.d/00-bonanza-hardening.conf /etc/ssh/sshd_config.d/00-bonanza-hardening.conf.rejected
+        echo "ERROR: sshd rejected the hardening drop-in; it was set aside and sshd was left as it was" >&2
+        exit 1
+      fi
+
+      # ── 5. Automatic security updates and fail2ban ─────────────────────────
+      step "unattended-upgrades and fail2ban"
+      systemctl enable --now unattended-upgrades
+      systemctl enable fail2ban
+      systemctl restart fail2ban
+
+      # ── 6. Host firewall ───────────────────────────────────────────────────
+      # Oracle's Ubuntu images load /etc/iptables/rules.v4 at boot. The INPUT
+      # chain ends with a REJECT rule, so a port is opened by adding an ACCEPT
+      # rule ABOVE that line. Everything else in the file is left alone,
+      # including the rules that let the instance reach its boot volume.
+      #
+      # tunnel mode: nothing is opened. cloudflared only makes outbound
+      #   connections, so the file is not touched at all.
+      # direct mode: TCP 80 and 443 are accepted.
+      #
+      # Two things worth knowing:
+      #  - Ports published by Docker containers are forwarded (FORWARD chain,
+      #    after DNAT) and never pass through INPUT, so these INPUT rules are
+      #    not what protects them. The cloud network security group is. The
+      #    rules below matter for anything listening on the host itself.
+      #  - Reloading the rules file wipes the chains Docker added at runtime,
+      #    which is why Docker is restarted straight afterwards.
+      RULES=/etc/iptables/rules.v4
+      rules_changed=0
+
+      open_tcp_port() {
+        port="$1"
+        if grep -Eq -- "^-A INPUT .*--dport $port .*-j ACCEPT" "$RULES"; then
+          echo "TCP $port is already accepted in $RULES"
+          return 0
+        fi
+        sed -i "/^-A INPUT -j REJECT/i -A INPUT -p tcp -m state --state NEW -m tcp --dport $port -j ACCEPT" "$RULES"
+        echo "TCP $port: ACCEPT rule added above the INPUT REJECT rule"
+        rules_changed=1
+      }
+
+      if [ "$INGRESS_MODE" = "direct" ]; then
+        step "Host firewall: opening TCP 80 and 443 (ingress mode: direct)"
+        if [ ! -f "$RULES" ] || ! grep -q -- "^-A INPUT -j REJECT" "$RULES"; then
+          echo "ERROR: $RULES is missing or has no '-A INPUT -j REJECT' line; it was not modified." >&2
+          echo "       Inspect the firewall by hand: sudo iptables -S INPUT" >&2
+          exit 1
+        fi
+        # Keep the file exactly as the image shipped it, for reference.
+        if [ ! -f "$RULES.bonanza-original" ]; then
+          cp -a "$RULES" "$RULES.bonanza-original"
+        fi
+        cp -a "$RULES" "$RULES.bonanza-before-edit"
+        open_tcp_port 80
+        open_tcp_port 443
+        if [ "$rules_changed" -eq 1 ]; then
+          # Refuse to load a file iptables cannot parse.
+          if ! iptables-restore --test <"$RULES"; then
+            cp -a "$RULES.bonanza-before-edit" "$RULES"
+            echo "ERROR: the edited rules file did not pass iptables-restore --test; the previous file was put back" >&2
+            exit 1
+          fi
+          # The edit above is what makes the change permanent (the file is
+          # loaded at every boot). This applies it now.
+          netfilter-persistent reload
+          systemctl restart docker
+        fi
+      else
+        step "Host firewall: left untouched (ingress mode: tunnel)"
+      fi
+
+      step "Versions"
+      restic version
+      jq --version
+      echo
+      echo "BONANZA first-boot setup complete (ingress mode: $INGRESS_MODE)"
+
+# ── Run the script ───────────────────────────────────────────────────────────
+runcmd:
+  - [/usr/local/sbin/bonanza-first-boot.sh]
+
+final_message: "cloud-init finished after $UPTIME seconds. Check: sudo tail -n 60 /var/log/cloud-init-output.log"

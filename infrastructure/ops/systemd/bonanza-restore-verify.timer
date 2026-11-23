@@ -1,0 +1,13 @@
+# Weekly, Sunday 04:30 Israel time: after the nightly backup (02:30) and after
+# the reboot window (03:30).
+[Unit]
+Description=BONANZA restore verification, weekly on Sunday at 04:30 Asia/Jerusalem
+
+[Timer]
+OnCalendar=Sun *-*-* 04:30:00 Asia/Jerusalem
+Persistent=true
+AccuracySec=1min
+Unit=bonanza-restore-verify.service
+
+[Install]
+WantedBy=timers.target

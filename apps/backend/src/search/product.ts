@@ -24,8 +24,10 @@ const PRODUCT_GRAPH_FIELDS = [
   "categories.name",
   "categories.handle",
   "categories.mpath",
+  "tags.id",
   "tags.value",
   "variants.sku",
+  "brand.id",
   "brand.handle",
   "brand.name",
   "options.title",
@@ -51,9 +53,9 @@ type ProductRow = {
         mpath?: string | null;
       } | null)[]
     | null;
-  tags?: ({ value?: string | null } | null)[] | null;
+  tags?: ({ id?: string | null; value?: string | null } | null)[] | null;
   variants?: ({ sku?: string | null } | null)[] | null;
-  brand?: { handle?: string | null; name?: string | null } | null;
+  brand?: { id?: string | null; handle?: string | null; name?: string | null } | null;
   options?: ProductOptionRow[] | null;
 };
 
@@ -75,6 +77,8 @@ const productFields = search.define({
   category_handles: search.keyword().array().filterable().facetable().retrievable(),
   collection_id: search.keyword().filterable().retrievable(false),
   brand: search.keyword().filterable().facetable().retrievable(),
+  brand_id: search.keyword().filterable().retrievable(false),
+  tag_ids: search.keyword().array().filterable().retrievable(false),
   brand_name: search.text().searchable({ weight: 2 }).retrievable(),
   skus: search.keyword().array().searchable({ weight: 2 }).retrievable(false),
   // Extra words to match on: see `toKeywords`.
@@ -178,6 +182,10 @@ function toDocument(
     category_handles: Array.from(categoryHandles),
     collection_id: product.collection_id ?? null,
     brand: product.brand?.handle ?? null,
+    brand_id: product.brand?.id ?? null,
+    tag_ids: (product.tags ?? [])
+      .map((tag) => tag?.id)
+      .filter((id): id is string => Boolean(id)),
     brand_name: product.brand?.name ?? null,
     skus,
     keywords: toKeywords(product),

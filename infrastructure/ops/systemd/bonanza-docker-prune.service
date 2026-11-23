@@ -1,0 +1,22 @@
+# Removes Docker images that no container uses and that were built more than
+# 7 days ago, and build cache older than 7 days, so old releases do not fill
+# the disk. Images in use by a container (running or stopped) are kept.
+# Started by bonanza-docker-prune.timer.
+#
+# Note: the image of the previous release counts as unused. If it is older
+# than 7 days it is removed here; rollback.sh then pulls it again from the
+# registry.
+[Unit]
+Description=BONANZA Docker cleanup (unused images and build cache older than 7 days)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=bonanza
+Group=bonanza
+ExecStart=/usr/bin/docker image prune -af --filter "until=168h"
+ExecStart=/usr/bin/docker builder prune -af --filter "until=168h"
+Nice=10
+TimeoutStartSec=30min
+NoNewPrivileges=true

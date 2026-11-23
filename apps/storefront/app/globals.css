@@ -1,0 +1,242 @@
+@import "tailwindcss";
+
+/*
+ * BONANZA design system.
+ *
+ * Taken from the reference designs: near-black charcoal surfaces, white type,
+ * hairline borders, small radii and soft depth. Sage with a serif face is the
+ * single accent, used for editorial blocks.
+ */
+@theme {
+  /* Surfaces, darkest to lightest */
+  --color-ink-950: #0b0c0d;
+  --color-ink-900: #111213;
+  --color-ink-850: #161719;
+  --color-ink-800: #1b1c1f;
+  --color-ink-700: #232528;
+  --color-ink-600: #2f3135;
+  --color-ink-500: #45484d;
+
+  /* Text */
+  --color-paper: #f5f5f2;
+  --color-mist-200: #d2d3d5;
+  --color-mist-300: #b0b2b5;
+  --color-mist-400: #8f9195;
+
+  /* Product image well: the flat grey behind product shots */
+  --color-well-top: #9a9b9d;
+  --color-well-bottom: #77787a;
+
+  /* Editorial accent */
+  --color-sage: #a9ab9d;
+  --color-sage-deep: #8f9184;
+  --color-sage-ink: #f4f2e9;
+
+  /* Feedback. Kept muted so they sit inside the monochrome palette. */
+  --color-danger: #ff9d94;
+  --color-success: #a7d7b0;
+  --color-warning: #ecd58a;
+
+  --font-sans: var(--font-heebo), "Heebo", "Arial Hebrew", Arial, sans-serif;
+  --font-serif: var(--font-frank), "Frank Ruhl Libre", "Times New Roman", serif;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-xl: 16px;
+
+  --shadow-card: 0 1px 0 rgb(255 255 255 / 0.04) inset, 0 18px 40px -22px rgb(0 0 0 / 0.9);
+  --shadow-raised: 0 1px 0 rgb(255 255 255 / 0.06) inset, 0 30px 60px -28px rgb(0 0 0 / 0.95);
+
+  --container-site: 76rem;
+
+  --animate-rise: rise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-fade: fade 0.6s ease both;
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(18px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes fade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+}
+
+@layer base {
+  html {
+    background: var(--color-ink-950);
+    color: var(--color-paper);
+    color-scheme: dark;
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.6;
+    min-height: 100dvh;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-weight: 800;
+    line-height: 1.12;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  /* One visible focus style everywhere. */
+  :focus-visible {
+    outline: 2px solid var(--color-paper);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  ::selection {
+    background: var(--color-paper);
+    color: var(--color-ink-950);
+  }
+
+  /* Number inputs: no spinners, they fight with the quantity buttons. */
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    appearance: textfield;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* The page column. */
+  .container-site {
+    width: 100%;
+    max-width: var(--container-site);
+    margin-inline: auto;
+    padding-inline: 1.25rem;
+  }
+  @media (min-width: 768px) {
+    .container-site {
+      padding-inline: 2rem;
+    }
+  }
+
+  /* The grey surface product images sit on. */
+  .product-well {
+    background:
+      radial-gradient(120% 90% at 50% 18%, rgb(255 255 255 / 0.2), transparent 62%),
+      linear-gradient(180deg, var(--color-well-top), var(--color-well-bottom));
+  }
+
+  /* Faint film grain over large dark areas, as in the references. */
+  .grain::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.5;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.35'/%3E%3C/svg%3E");
+  }
+
+  /* Small uppercase label above headings. */
+  .eyebrow {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--color-mist-400);
+  }
+
+  /* Long-form text from the content pages. */
+  .prose-site {
+    color: var(--color-mist-200);
+    font-size: 1.0625rem;
+    line-height: 1.8;
+  }
+  .prose-site > * + * {
+    margin-block-start: 1.1em;
+  }
+  .prose-site h2 {
+    color: var(--color-paper);
+    font-size: 1.6rem;
+    margin-block-start: 2em;
+  }
+  .prose-site h3 {
+    color: var(--color-paper);
+    font-size: 1.25rem;
+    margin-block-start: 1.6em;
+  }
+  .prose-site a {
+    color: var(--color-paper);
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+  .prose-site ul,
+  .prose-site ol {
+    padding-inline-start: 1.4em;
+  }
+  .prose-site ul {
+    list-style: disc;
+  }
+  .prose-site ol {
+    list-style: decimal;
+  }
+  .prose-site li + li {
+    margin-block-start: 0.4em;
+  }
+  .prose-site blockquote {
+    border-inline-start: 3px solid var(--color-ink-500);
+    background: var(--color-ink-850);
+    padding: 0.9em 1.2em;
+    border-radius: var(--radius-md);
+    color: var(--color-mist-300);
+  }
+  .prose-site strong {
+    color: var(--color-paper);
+  }
+  .prose-site table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .prose-site th,
+  .prose-site td {
+    border-block-end: 1px solid var(--color-ink-600);
+    padding: 0.6em 0.4em;
+    text-align: start;
+  }
+}
