@@ -77,6 +77,8 @@ const productFields = search.define({
   brand: search.keyword().filterable().facetable().retrievable(),
   brand_name: search.text().searchable({ weight: 2 }).retrievable(),
   skus: search.keyword().array().searchable({ weight: 2 }).retrievable(false),
+  // Extra words to match on: see `toKeywords`.
+  keywords: search.text().searchable({ weight: 1 }).retrievable(false),
   labels: search.keyword().array().filterable().facetable().retrievable(),
   option_values: search
     .keyword()
@@ -87,6 +89,46 @@ const productFields = search.define({
     .retrievable(),
   ...priceFields,
 });
+
+/** Hebrew one-letter prefixes: and, the, in, to, from, as, that. */
+const HEBREW_PREFIX = /^[\u05d5\u05d4\u05d1\u05dc\u05de\u05db\u05e9](?=[\u05d0-\u05ea]{3,}$)/
+
+/**
+ * Words the full-text index would otherwise miss.
+ *
+ * Hebrew attaches short words to the front of the next one ("לזקן" is
+ * "for the beard"), and the index matches whole words, so a search for "זקן"
+ * would not find it. Each word that starts with such a prefix is added again
+ * without it. Category and brand names are added too, so searching for a
+ * category name finds its products.
+ */
+function toKeywords(product: ProductRow): string {
+  const text = [
+    product.title,
+    product.description,
+    ...(product.categories ?? []).map((category) => category?.name),
+    product.brand?.name,
+  ]
+    .filter(Boolean)
+    .join(" ")
+
+  const words = new Set<string>()
+  for (const word of text.split(/[^\p{L}\p{N}]+/u)) {
+    if (!word) {
+      continue
+    }
+    const stripped = word.replace(HEBREW_PREFIX, "")
+    if (stripped !== word) {
+      words.add(stripped)
+    }
+  }
+  for (const category of product.categories ?? []) {
+    if (category?.name) {
+      words.add(category.name)
+    }
+  }
+  return Array.from(words).join(" ")
+}
 
 type ProductDocument = SearchTypes.InferSearchDocumentType<
   typeof productFields
@@ -138,6 +180,7 @@ function toDocument(
     brand: product.brand?.handle ?? null,
     brand_name: product.brand?.name ?? null,
     skus,
+    keywords: toKeywords(product),
     labels,
     option_values: toOptionValues(product.options),
     ...toProductPricing(pricing),

@@ -1,0 +1,59 @@
+# Copy to terraform.tfvars and fill in. terraform.tfvars is gitignored.
+#
+#   cp terraform.tfvars.example terraform.tfvars
+#
+# The first three values are printed by ../oci-discovery.sh.
+
+# ── Account ──────────────────────────────────────────────────────────────────
+
+# OCID of the tenancy (root compartment).
+tenancy_ocid = "ocid1.tenancy.oc1..replace-me"
+
+# The tenancy's HOME region. Always Free Ampere A1 exists only there, and the
+# configuration refuses to create the VM in any other region.
+region = "replace-me" # for example il-jerusalem-1
+
+# Profile name used with `oci session authenticate --profile-name ...`.
+oci_profile = "DEFAULT"
+
+# Optional: a compartment other than the root compartment.
+# compartment_ocid = "ocid1.compartment.oc1..replace-me"
+
+# ── Access ───────────────────────────────────────────────────────────────────
+
+# The only address range allowed to reach SSH. Your own public IPv4 address as
+# a /32. Find it with: curl -4 https://ifconfig.me
+# 0.0.0.0/0 is rejected.
+admin_cidr = "203.0.113.7/32"
+
+# One SSH PUBLIC key (the contents of ~/.ssh/<name>.pub). Never a private key.
+ssh_public_key = "ssh-ed25519 AAAA...replace-me you@laptop"
+
+# How web traffic reaches the VM:
+#   "tunnel"  Cloudflare Tunnel. No inbound web ports at all. The default.
+#   "direct"  TCP 80 and 443 open to the internet. Temporary testing only.
+ingress_mode = "tunnel"
+
+# ── Size (defaults are the whole Always Free allowance) ──────────────────────
+
+# ocpus                   = 2    # more than 2 is rejected
+# memory_in_gbs           = 12   # more than 12 is rejected
+# boot_volume_size_in_gbs = 100  # 50 to 200; 200 GB is the tenancy-wide free total
+
+# Which availability domain, counted from 0. il-jerusalem-1 has only one.
+# availability_domain_index = 0
+
+# Pin the image once the VM exists (value from `terraform output image_ocid`).
+# image_ocid = "ocid1.image.oc1..replace-me"
+
+# Turn off only if the launch is rejected because of in-transit encryption.
+# enable_pv_encryption_in_transit = true
+
+# ── Guardrails ───────────────────────────────────────────────────────────────
+
+# Hard caps on A1 compute and block storage for the whole tenancy.
+# Needs tenancy-administrator rights.
+manage_quotas = true
+
+# Email for budget alerts. Empty = no budget is created.
+budget_alert_email = ""

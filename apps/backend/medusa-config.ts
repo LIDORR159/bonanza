@@ -1,4 +1,4 @@
-import { defineConfig, loadEnv } from "@medusajs/framework/utils"
+import { defineConfig, loadEnv, MedusaError } from "@medusajs/framework/utils"
 
 loadEnv(process.env.NODE_ENV || "development", process.cwd())
 
@@ -23,13 +23,17 @@ const workerMode = (process.env.MEDUSA_WORKER_MODE || "shared") as
 
 const paymentDevEnabled = process.env.PAYMENT_DEV_ENABLED === "true"
 if (paymentDevEnabled && isProduction) {
-  throw new Error(
+  throw new MedusaError(
+    MedusaError.Types.INVALID_ARGUMENT,
     "PAYMENT_DEV_ENABLED=true is not allowed when APP_ENV=production. " +
       "The development payment provider must never run in production."
   )
 }
 if (paymentDevEnabled && !process.env.PAYMENT_DEV_WEBHOOK_SECRET) {
-  throw new Error("PAYMENT_DEV_ENABLED=true requires PAYMENT_DEV_WEBHOOK_SECRET.")
+  throw new MedusaError(
+    MedusaError.Types.INVALID_ARGUMENT,
+    "PAYMENT_DEV_ENABLED=true requires PAYMENT_DEV_WEBHOOK_SECRET."
+  )
 }
 
 const modules: Record<string, unknown>[] = [

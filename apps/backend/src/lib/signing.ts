@@ -5,11 +5,22 @@ export function sign(secret: string, payload: string): string {
   return createHmac("sha256", secret).update(payload).digest("hex")
 }
 
-/** Constant-time comparison of two hex signatures. */
+const SHA256_HEX = /^[0-9a-f]{64}$/
+
+/**
+ * Constant-time comparison of two hex SHA-256 signatures.
+ *
+ * Both sides must be exactly 64 hex characters. Without that check
+ * `Buffer.from(value, "hex")` silently drops anything after the first non-hex
+ * character, so a valid signature with junk appended would still compare equal.
+ */
 export function signaturesMatch(expected: string, received: string): boolean {
-  const a = Buffer.from(expected, "hex")
-  const b = Buffer.from(received, "hex")
-  return a.length === b.length && a.length > 0 && timingSafeEqual(a, b)
+  const a = expected.toLowerCase()
+  const b = received.toLowerCase()
+  if (!SHA256_HEX.test(a) || !SHA256_HEX.test(b)) {
+    return false
+  }
+  return timingSafeEqual(Buffer.from(a, "hex"), Buffer.from(b, "hex"))
 }
 
 /**
@@ -35,8 +46,14 @@ export function verifySignedToken<T extends Record<string, unknown>>(
   if (!secret || !token) {
     return null
   }
-  const [body, signature] = token.split(".")
-  if (!body || !signature || !signaturesMatch(sign(secret, body), signature)) {
+  const parts = token.split(".")
+  const [body, signature] = parts
+  if (
+    parts.length !== 2 ||
+    !body ||
+    !signature ||
+    !signaturesMatch(sign(secret, body), signature)
+  ) {
     return null
   }
   try {
