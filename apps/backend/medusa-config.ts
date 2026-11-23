@@ -91,6 +91,13 @@ if (redisUrl) {
           },
         ],
       },
+    },
+    {
+      // Two-factor sign-in keeps its pending challenges in the cache. In Redis
+      // they are shared by every backend process and survive a restart; the
+      // default in-memory cache belongs to one process only.
+      resolve: "@medusajs/medusa/cache-redis",
+      options: { redisUrl },
     }
   )
 }
