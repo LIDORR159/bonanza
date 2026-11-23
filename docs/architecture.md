@@ -1,6 +1,6 @@
 # Architecture
 
-BONANZA is a Hebrew, right-to-left online store for professional barber equipment and grooming products, sold in Israel in ILS. This document describes how the system is put together and why.
+BONANZA is the website of a barbershop and its academy, with an online store for professional barber equipment and grooming products, sold in Israel in ILS. It is written in Hebrew, English and Arabic. This document describes how the system is put together and why.
 
 ## System overview
 
@@ -49,9 +49,9 @@ flowchart TB
 
 | Component | Technology | Responsibility |
 |---|---|---|
-| Storefront | Next.js 16 (App Router), React 19, Tailwind 4, TypeScript | Everything a shopper sees. Hebrew, RTL. Talks to Medusa's Store API from the server. Holds no pricing logic. |
+| Storefront | Next.js 16 (App Router), React 19, Tailwind 4, TypeScript | Everything a visitor sees: the barbershop pages (booking link, price list, gallery, reviews, contact) and the store. Hebrew, English and Arabic. Talks to Medusa's Store API from the server. Holds no pricing logic. |
 | Commerce backend | Medusa 2.23 | Catalog, categories, variants, inventory, prices, promotions, carts, orders, customers, fulfillment, tax, payments, authentication. |
-| Admin dashboard | Medusa Admin, extended | Products, orders, customers, inventory, promotions (built in) plus site content, brands and an audit log (custom extensions). |
+| Admin dashboard | Medusa Admin, extended | Products, orders, customers, inventory, promotions (built in) plus site content (home page, price list, gallery, team, reviews, menus, pages, settings), brands and an activity log (custom extensions). |
 | Database | PostgreSQL 17 | All business data, including CMS content. |
 | Queue, events, locks, sessions | Redis 7 | Medusa's event bus, workflow engine, locking and admin sessions. |
 | Media | Cloudflare R2 through Medusa's S3 file provider | Product and content images. Local disk in development. |
@@ -65,7 +65,7 @@ Production hostnames are planned as below. The domain is not owned yet, so every
 | Hostname | Serves | Reachable paths |
 |---|---|---|
 | `bonanza.co.il` (and `www`, redirected) | Storefront | All storefront routes |
-| `api.bonanza.co.il` | Medusa Store API | `/store/*`, `/auth/customer/*`, `/hooks/*`, `/health`. `/admin`, `/app` and admin auth are refused. |
+| `api.bonanza.co.il` | Medusa Store API | `/store/*`, `/auth/customer/*`, `/auth/session`, `/auth/token/refresh`, `/hooks/*`, `/static/*` (uploaded files when no media bucket is set), `/health`, and `/dev-gateway/pay/*` while the simulated payment page is enabled. Everything else, including `/admin`, `/app` and admin sign-in, is refused. |
 | `dashboard.bonanza.co.il` | Medusa Admin | `/` redirects to `/app`. `/app`, `/admin/*`, `/auth/*`. `/store` and `/hooks` are refused. |
 | media hostname | R2 public bucket | Images only |
 
@@ -108,9 +108,10 @@ Medusa's own features are used wherever they exist. These modules add what it do
 
 | Module | Adds |
 |---|---|
-| `cms` | Homepage sections, banners, content pages, navigation menus, site settings, newsletter sign-ups |
+| `cms` | Homepage sections, the service price list, gallery, team, reviews, banners, content pages, navigation menus, site settings, newsletter sign-ups |
 | `brand` | Brands, linked to products |
-| `audit` | A record of who changed content, brands and admin users |
+| `activity-log` | A record of who changed content, brands and admin users |
+| `dev-gateway` | The stand-in payment company behind the simulated provider: its charges and its hosted page |
 | `payment-dev-hosted` | A simulated hosted-page payment gateway for development |
 | `notification-smtp` | Email over SMTP |
 
@@ -118,13 +119,27 @@ Details are in `cms-management.md`, `payments-integration.md` and `security.md`.
 
 ## Request and data flows
 
-**Browsing.** Catalog and product pages are prerendered and refreshed on a timer and on demand. They never read cookies, so the CDN can cache them. The cart badge and sign-in state load in the browser afterwards. When staff change a product or content, a Medusa subscriber calls a signed endpoint on the storefront to refresh the affected pages.
+**Browsing.** The home page, product pages, the gallery, brand and content pages are rendered on their first request, cached, and refreshed on a timer and on demand. They never read cookies, so the CDN can cache them. Catalog listings depend on the query string (search, filters, sorting, page number), so they are rendered per request from catalog data that is itself cached. The cart badge and sign-in state load in the browser afterwards. When staff change a product, content or a translation, a Medusa subscriber calls a signed endpoint on the storefront to refresh the affected pages.
 
 **Cart, checkout, account.** These pages are rendered per request and are never cached. The cart id and the customer token are stored in httpOnly cookies set by the storefront server.
 
 **Prices.** Medusa calculates every price, discount, tax and total. The storefront only displays them.
 
-**Payment.** The storefront asks Medusa to start a payment. The payment provider returns a hosted page to redirect to. The provider then notifies Medusa server-to-server, and only that notification can mark a payment as authorized. Returning to the storefront's success page changes nothing by itself.
+**Payment.** The storefront asks Medusa to start a payment. The payment provider returns a hosted page to redirect to. An order is created only after Medusa has asked the payment company itself for the state of the charge. That happens when the company's signed notification arrives, or when the return page asks Medusa to complete the cart, whichever comes first; the two cannot produce two orders. The browser arriving at the return page proves nothing and is never treated as payment. Details are in `payments-integration.md`.
+
+## Languages
+
+Hebrew is the default language and has no URL prefix (`/products`). English and Arabic are prefixed (`/en/products`, `/ar/products`). Each page states its own address as canonical and names the other two as alternates.
+
+| What | Where the other languages come from |
+|---|---|
+| Interface texts (buttons, labels, form errors) | One dictionary per language in `apps/storefront/lib/i18n`. A unit test fails if their keys drift apart. |
+| Content and catalog (sections, price list, menus, product titles, categories) | Medusa's translation module. Hebrew is the stored record; English and Arabic are translations edited in the admin under Settings → Translations. A field with no translation is served in Hebrew. |
+| Direction and fonts | Set on `<html>` per language: Hebrew and Arabic right-to-left, English left-to-right. |
+
+The language of a page comes only from its address, never from a cookie, so cached pages stay correct for every visitor. Server actions (forms) learn the language from the page that submitted them.
+
+Not translated today: order and password emails, the simulated payment page, review texts (shown as written), and the search index, which matches Hebrew titles in every language. The English and Arabic wording in the repository is a first draft for the owner to review.
 
 ## Access restrictions that are not available
 
