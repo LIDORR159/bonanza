@@ -224,6 +224,10 @@ async function Section({ section }: { section: StoreHomepageSection }) {
       )
 
     case "newsletter":
+      // "Newsletter sign-up" in site settings switches this off everywhere.
+      if (!(await getSettings()).newsletter_enabled) {
+        return null
+      }
       return (
         <Block id={section.key}>
           <div className="mx-auto max-w-2xl rounded-xl border border-ink-600/70 bg-ink-850 p-7 sm:p-10">
@@ -242,6 +246,7 @@ async function Section({ section }: { section: StoreHomepageSection }) {
 }
 
 export async function HomeSections({ sections }: { sections: StoreHomepageSection[] }) {
+  const settings = await getSettings()
   const rendered: React.ReactNode[] = []
 
   for (let index = 0; index < sections.length; index++) {
@@ -257,6 +262,7 @@ export async function HomeSections({ sections }: { sections: StoreHomepageSectio
           section={section}
           products={overlap}
           productsTitle={next?.title}
+          tagline={settings.tagline}
         />
       )
       if (overlap.length) {

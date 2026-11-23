@@ -23,6 +23,7 @@ export function Hero({
   section,
   products,
   productsTitle,
+  tagline,
 }: {
   section: Pick<
     StoreHomepageSection,
@@ -31,6 +32,8 @@ export function Hero({
   /** Cards that overlap the hero's bottom edge. */
   products?: CatalogItem[]
   productsTitle?: string | null
+  /** The line above the headline, from site settings. */
+  tagline?: string | null
 }) {
   const t = getT()
   const overlap = (products ?? []).slice(0, 4)
@@ -52,7 +55,7 @@ export function Hero({
         >
           <div className="animate-rise">
             <p className="eyebrow mb-5" dir="ltr">
-              {t.brand.tagline}
+              {tagline || t.brand.tagline}
             </p>
             <h1 className="text-[2.6rem] font-black leading-[1.04] sm:text-6xl lg:text-7xl">
               {section.title || t.brand.name}

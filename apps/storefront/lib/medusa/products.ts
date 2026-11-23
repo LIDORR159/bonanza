@@ -52,15 +52,20 @@ export async function getProductByHandle(handle: string): Promise<StoreProduct |
 export async function listProductHandles(): Promise<
   { handle: string; updated_at: string }[]
 > {
-  const all: { handle: string; updated_at: string }[] = []
+  type Row = {
+    handle: string
+    updated_at: string
+    metadata?: Record<string, unknown> | null
+  }
+  const all: Row[] = []
   const limit = 200
   try {
     for (let offset = 0; offset < 5000; offset += limit) {
       const { products, count } = await cachedFetch<{
-        products: { handle: string; updated_at: string }[]
+        products: Row[]
         count: number
       }>("/store/products", {
-        query: { fields: "handle,updated_at", limit, offset },
+        query: { fields: "handle,updated_at,metadata", limit, offset },
         tags: ["products"],
         revalidate: 3600,
       })
@@ -72,5 +77,8 @@ export async function listProductHandles(): Promise<
   } catch {
     // An unreachable backend yields a shorter sitemap, not a failed request.
   }
+  // The admin's SEO panel can keep a product out of the sitemap.
   return all
+    .filter((product) => product.metadata?.seo_exclude_from_sitemap !== "true")
+    .map(({ handle, updated_at }) => ({ handle, updated_at }))
 }

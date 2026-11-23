@@ -91,7 +91,7 @@ The storefront is therefore a standard Next.js application with two build target
 | Node standalone container | The Oracle VM, behind Cloudflare's CDN | $0 | Default |
 | `@opennextjs/cloudflare` | Cloudflare Workers | $5/month realistically | Built and smoke-tested, not deployed |
 
-Code is kept portable between them: no Cache Components, no edge runtime, configuration through environment variables. `vinext check` runs in CI as a non-blocking signal so a later move stays cheap.
+Code is kept portable between them: no Cache Components, no edge runtime, configuration through environment variables. The Workers build was built and run in Cloudflare's local emulator on 2026-11-23; see `cloudflare-deployment.md`. A `vinext check` step in CI was planned as an early warning and has not been added.
 
 ## Backend process model
 

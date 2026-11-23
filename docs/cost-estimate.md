@@ -86,7 +86,7 @@ The Cloudflare Images binding is deliberately left out of `apps/storefront/wrang
 
 ## GitHub
 
-The repository is meant to be private on GitHub Free.
+The repository was private on GitHub Free while the system was built and was made public by the owner on 2026-11-23. For a public repository, standard GitHub-hosted runners are free of charge and the minute and storage allowances described here do not apply; the figures are kept because they apply again if the repository is ever made private. See [github-actions.md](github-actions.md).
 
 **Actions.** GitHub now states the included amount as money ($12 a month) and not as minutes; at the standard Linux rate that is the 2,000 minutes its pricing page shows. Building two ARM64 container images is the most expensive job this project has. That is why image builds are planned to be started by hand and not on every push: routine pushes then spend minutes on checks only. No workflow exists yet, so there is no measurement of how many minutes a month the checks will use.
 

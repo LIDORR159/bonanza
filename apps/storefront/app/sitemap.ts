@@ -22,11 +22,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { path: "/products", changeFrequency: "daily", priority: 0.9 },
     { path: "/gallery", changeFrequency: "weekly", priority: 0.7 },
     { path: "/brands", changeFrequency: "weekly", priority: 0.5 },
-    ...categories.map((category) => ({
-      path: `/categories/${category.handle}`,
-      changeFrequency: "daily" as const,
-      priority: 0.8,
-    })),
+    ...categories
+      // The admin's SEO panel can keep a category out of the sitemap.
+      .filter((category) => category.metadata?.seo_exclude_from_sitemap !== "true")
+      .map((category) => ({
+        path: `/categories/${category.handle}`,
+        changeFrequency: "daily" as const,
+        priority: 0.8,
+      })),
     ...brands.map((brand) => ({
       path: `/brands/${brand.handle}`,
       changeFrequency: "weekly" as const,

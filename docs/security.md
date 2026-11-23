@@ -30,7 +30,7 @@ Each control below says how it was checked, using one of three labels.
 
 | Label | Meaning |
 |---|---|
-| **Test** | An automated browser test in `e2e/tests` asserts it. The test is named. The suite is run by hand against a local stack; no CI runs it yet. |
+| **Test** | An automated browser test in `e2e/tests` asserts it. The test is named. The suite also runs on GitHub on every push to `main` (`e2e.yml`). |
 | **Checked by hand** | Observed on a running local stack on the date given. |
 | **Code only** | The control is in the code and was read there. No automated test asserts it. |
 
@@ -186,7 +186,7 @@ There is no `Content-Security-Policy`. See [Known gaps](#known-gaps).
 - Pages that read cookies are rendered per request, and Next.js marks such pages `private, no-cache, no-store` by default. The same applies while content preview is on.
 - While indexing is off (`ALLOW_INDEXING=false`, the default), every page carries `noindex` and `robots.txt` disallows everything.
 
-Two caveats, both listed under [Known gaps](#known-gaps): the explicit rule matches the Hebrew addresses only, not `/en/...` and `/ar/...`; and the existing test does not prove anything when run against the development server.
+The explicit rule covers the Hebrew, English and Arabic addresses. One caveat: the test proves nothing against the development server, which sends `no-store` on every page; it has to be run against a production build.
 
 **Verified:** **Test**, `storefront.spec.ts`: "temporary URLs are kept out of search engines". The test "personal pages are never cacheable" checks `/cart`, `/checkout`, `/account/login` and `/api/cart`, and the English and Arabic forms of the same pages, for `no-store`. The development server sends `no-store` on every page, so the test is only meaningful against a production build; it passed against one (`next build`, `next start`) on 2026-11-23, in the same run in which `/`, `/gallery` and product pages were seen to be cacheable (`s-maxage=300`).
 
@@ -276,11 +276,11 @@ Cart, promotion-code, search and checkout routes have no limit at all. Per-visit
 
 There is no web application firewall, bot protection or edge rate limiting until Cloudflare is in front of the site. Cloudflare's Free plan allows one rate limiting rule; the plan is to use it.
 
-### GitHub Free, private repository
+### GitHub: nothing stops a direct push to `main`
 
-A private repository on GitHub Free has no protected branches or rulesets, so nothing technically stops a direct push to `main`. GitHub Pro would add protected branches and required pull-request reviews for private repositories. Required reviewers on deployment environments are, according to GitHub's documentation read on 2026-11-23, available for public repositories only on the Free, Pro and Team plans.
+The repository is public (since 2026-11-23). GitHub offers protected branches for public repositories on the Free plan, but none has been set up, so nothing technically stops a direct push to `main`; setting one is on the pre-launch list. No deployment environment with required reviewers exists either.
 
-The intended compensations are that deployments are started by hand by the owner, that workflows triggered by pull requests receive no secrets, that images are deployed by digest, and that the deployment key on the server can run one script only. The workflows do not exist yet, so none of this is in force.
+What is in force today: workflows triggered by pull requests receive no secrets and a read-only token; the image and deploy workflows start only by hand and only for the repository owner; images are meant to be deployed by digest; and the deployment key planned for the server can run one script only. The deploy workflows are inert, and nothing has been deployed through them. A public repository also means anyone can read this document, including its list of gaps.
 
 ### The map is a third-party frame on every page
 
@@ -302,8 +302,8 @@ When an address or a map is set in the admin, the footer shows a Google Maps ifr
 | Passwords | The 8-character minimum is enforced by the storefront's forms only. There is no check against known-breached passwords. |
 | Direct-to-storage uploads | Checked by declared type and size only. |
 | Emails and the simulated payment page | Hebrew only. A shopper using the English or Arabic site receives the order confirmation and the password-reset email in Hebrew. |
-| No backend tests | Upload rejection, webhook forgery and the limits on the sign-in routes are untested. |
-| No scanning, no CI | Control 16. |
+| Backend tests are unit tests only | Signatures, publishing rules and the upload content check have unit tests. Upload rejection through the route and webhook forgery are covered only through the browser suite's flows, not by direct tests. |
+| Sixteen moderate advisories unreviewed | The dependency audit fails a run on high and critical findings only. The moderate ones reported on 2026-11-23 have not been looked at. |
 | No monitoring of security events | The prepared health watcher checks availability, disk and backup age, not sign-in failures or rejected webhooks. |
 
 ## Needs professional review

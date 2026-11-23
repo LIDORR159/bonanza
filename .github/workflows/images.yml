@@ -2,8 +2,12 @@
 # with the commit SHA. Prints the two digests, which is what a deployment
 # takes (ops/deploy.sh, ops/ssh-deploy-entrypoint.sh).
 #
-# MANUAL ONLY, ON PURPOSE. Private images count against GitHub Packages
-# storage, and on GitHub Free that is 500 MB. One pair of images is about
+# MANUAL ONLY, ON PURPOSE. An image is published under a version that
+# someone decided to release, not on every push. Storage is the other reason:
+# a new package starts private even when the repository is public, private
+# packages count against GitHub Packages storage, and on GitHub Free that is
+# 500 MB (GitHub currently does not charge for Container registry storage, and
+# says it will give notice before it does). One pair of images is about
 # 236 MB compressed (backend 163 MB, storefront 73 MB, measured 2026-11-23),
 # so the allowance holds two pairs: the running version and the one before it,
 # which a rollback needs. Building on every push would fill it within three

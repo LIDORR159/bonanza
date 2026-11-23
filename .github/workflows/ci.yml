@@ -4,8 +4,8 @@
 # pull request (including one from a fork) cannot reach any: the trigger is
 # `pull_request`, never `pull_request_target`, and the token is read-only.
 #
-# Minutes: this repository is private on GitHub Free, so every run draws on the
-# monthly Actions allowance. One job instead of several keeps the install to
+# Minutes: free for a public repository, which this is. If it is ever made
+# private again, every run draws on the monthly Actions allowance. One job instead of several keeps the install to
 # once per run, newer pushes cancel older runs, and changes that cannot affect
 # the applications do not start a run.
 #

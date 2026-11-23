@@ -50,7 +50,7 @@ Both logo files are white with a black outline, so they are made for dark backgr
 
 - The brief names the owner `lidor1594`. GitHub returns 404 for that name: no such user or organization exists.
 - The machine is signed in to GitHub as `LIDORR159`, which is the account the repository lives under.
-- **Decision (owner):** the repository is `LIDORR159/bonanza`, private.
+- **Decision (owner):** the repository is `LIDORR159/bonanza`. It was private while the system was built and was made public by the owner on 2026-11-23.
 - GitHub Free on a private repository does not offer branch protection, rulesets, or deployment environments. See `github-actions.md`.
 
 ### Oracle Cloud

@@ -278,6 +278,19 @@ Run the installer again whenever the scripts change; it never overwrites the two
 
 Both references must be pinned by digest or by a commit tag, for example `ghcr.io/lidorr159/bonanza-backend@sha256:<digest>`. The script pulls the images, runs the database migrations, starts the stack and waits until every service is healthy. If the images are private, Docker on the VM has to be signed in to the registry first (**[Credentials]**: `docker login ghcr.io`).
 
+On a first deployment the storefront starts without its publishable API key. The key is created by the first migration run, so it cannot be in `.env` beforehand, and the stack reports healthy without it. Read the key, put it in `/opt/bonanza/.env` as `MEDUSA_PUBLISHABLE_KEY`, and recreate the storefront, from `/opt/bonanza`:
+
+```bash
+docker compose --env-file .env --env-file images.env exec -T postgres \
+  psql -U bonanza -d bonanza -tAc \
+  "select token from api_key where type = 'publishable' and revoked_at is null and deleted_at is null order by created_at limit 1"
+
+# after adding the key to .env
+docker compose --env-file .env --env-file images.env up -d storefront
+```
+
+Until that is done the storefront has no key to send, and the Store API requires one on every request. The key is not a secret. Creating the first admin user and the optional starter content are the next steps of the same procedure, in [the Docker README](../infrastructure/docker/README.md#first-start).
+
 Then take the first backup and prove it restores:
 
 ```bash
@@ -303,7 +316,7 @@ ssh bonanza@<host> rollback
 
 Anything else is refused, including other image names, the tag `latest`, and any attempt to get a shell.
 
-**Open point.** The network rules in this repository allow SSH only from `admin_cidr`. A GitHub-hosted runner does not come from that address, so as things stand CI cannot reach port 22. How CI reaches the VM is settled in `github-actions.md`. Until then, run `deploy.sh` yourself over SSH.
+**Open point.** The network rules in this repository allow SSH only from `admin_cidr`. A GitHub-hosted runner does not come from that address, so as things stand CI cannot reach port 22. How CI could reach the VM is discussed in [github-actions.md](github-actions.md#the-open-deployment-question) and is still open: nothing has been decided or built, and the deployment workflow is inert. Until that changes, run `deploy.sh` yourself over SSH.
 
 ## 8. The two ingress modes
 
@@ -321,7 +334,7 @@ The mode is set in three places, which must agree:
 |---|---|---|
 | `terraform.tfvars` | `ingress_mode` | Whether the cloud network security group has rules for 80 and 443. |
 | The VM's host firewall | Set on first boot from the same variable | In `direct` mode, 80 and 443 are accepted in `/etc/iptables/rules.v4`. |
-| `/opt/bonanza/.env` | `COMPOSE_PROFILES` | Which ingress containers Compose starts. |
+| `/opt/bonanza/.env` | `COMPOSE_PROFILES` | Which ingress containers Compose starts: `cloudflared` and `caddy` for `tunnel`, `caddy-direct` for `direct`. |
 
 Ports published by Docker containers are forwarded by the kernel and do not pass through the host's `INPUT` rules. For those ports the cloud network security group is the only barrier. This is why `tunnel` mode closes 80 and 443 there and not just on the host.
 
@@ -339,13 +352,19 @@ From `tunnel` to `direct`:
    docker compose --env-file .env --env-file images.env up -d --remove-orphans
    ```
 
-4. Compose does not stop a container whose profile has been switched off, so `cloudflared` is still running. Remove it:
+4. Compose does not stop a container whose profile has been switched off. In direct mode the proxy is a service of its own, `caddy-direct`, because Compose cannot publish ports for one profile only. So both tunnel-mode containers, `cloudflared` and `caddy`, are still running. Remove them:
 
    ```bash
-   docker compose --env-file .env --env-file images.env --profile tunnel rm --stop --force cloudflared
+   docker compose --env-file .env --env-file images.env --profile tunnel rm --stop --force cloudflared caddy
    ```
 
-From `direct` back to `tunnel`: set `ingress_mode = "tunnel"` and apply (2 rules to destroy), which closes the ports at once. Then set `COMPOSE_PROFILES=tunnel` and run the same `docker compose ... up -d`. If the Compose file has services that exist only in the `direct` profile, remove them the same way with `--profile direct`. The two host firewall rules may stay; with the cloud rules gone they let nothing in.
+From `direct` back to `tunnel`: set `ingress_mode = "tunnel"` and apply (2 rules to destroy), which closes the ports at once. Then set `COMPOSE_PROFILES=tunnel` and run the same `docker compose ... up -d`. The direct-mode proxy, `caddy-direct`, is still running; remove it the same way:
+
+```bash
+docker compose --env-file .env --env-file images.env --profile direct rm --stop --force caddy-direct
+```
+
+The two host firewall rules may stay; with the cloud rules gone they let nothing in.
 
 ## SSH access model
 
@@ -368,7 +387,7 @@ From `direct` back to `tunnel`: set `ingress_mode = "tunnel"` and apply (2 rules
   sudo apt-get update && sudo apt-get install --only-upgrade docker-ce docker-ce-cli containerd.io docker-compose-plugin
   ```
 
-- `deploy.sh` runs `docker compose pull` for every service. Third-party images whose tags move (PostgreSQL, Redis, Caddy) are therefore refreshed during a deployment, and a rollback does not undo that. Pin those images by digest in the Compose file if you want deployments to change only the application.
+- PostgreSQL, Redis, Caddy and cloudflared are pinned by digest in `infrastructure/docker/compose.prod.yaml`, so a deployment never changes them, although `deploy.sh` runs `docker compose pull` for every service. They are not upgraded automatically either. To update one, change its tag and digest in the Compose file on purpose, and copy the file to the VM.
 
 ## Risks and what to do about them
 

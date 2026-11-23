@@ -63,7 +63,12 @@ export function PricingSection({
           <h2 className="text-3xl sm:text-4xl">{section.title || t.pricing.title}</h2>
           <p className="mt-3 text-mist-300">{section.body || t.pricing.vatNote}</p>
         </div>
-        <BookingLink href={bookingUrl} label={t.booking.ctaOnline} icon />
+        {/* The section's own button when one is set in the admin; otherwise booking. */}
+        <BookingLink
+          href={section.cta?.url ?? bookingUrl}
+          label={section.cta?.label ?? t.booking.ctaOnline}
+          icon
+        />
       </div>
 
       {filled.length ? (
