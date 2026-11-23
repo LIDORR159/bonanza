@@ -1,0 +1,71 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Environment and secrets — never commit real values
+.env
+.env.*
+!.env.example
+!.env.*.example
+.dev.vars
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+.oci/
+oci_api_key*
+*.tfvars
+!*.tfvars.example
+restic-password*
+
+# Build output
+.medusa/
+.next/
+.open-next/
+.wrangler/
+.turbo/
+.vercel/
+dist/
+build/
+out/
+*.tsbuildinfo
+next-env.d.ts
+cloudflare-env.d.ts
+
+# Medusa local file uploads (dev file provider)
+apps/backend/static/
+apps/backend/uploads/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+*.tfplan
+
+# Tests
+coverage/
+playwright-report/
+test-results/
+blob-report/
+.playwright/
+
+# Logs and OS noise
+*.log
+npm-debug.log*
+pnpm-debug.log*
+.DS_Store
+Thumbs.db
+
+# Editors
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+
+# Local databases / dumps
+*.dump
+*.sql.gz
+backups/

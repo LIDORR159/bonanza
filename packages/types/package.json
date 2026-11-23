@@ -1,0 +1,18 @@
+{
+  "name": "@bonanza/types",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Type definitions shared by the BONANZA backend and storefront. Types only: nothing here exists at runtime.",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3"
+  }
+}

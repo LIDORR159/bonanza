@@ -1,0 +1,30 @@
+{
+  "name": "bonanza",
+  "private": true,
+  "description": "BONANZA — Barbershop & Academy. Medusa v2 backend and Next.js storefront.",
+  "packageManager": "pnpm@12.3.4",
+  "engines": {
+    "node": ">=22.22.0"
+  },
+  "scripts": {
+    "dev:setup": "node scripts/setup-dev.mjs",
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "test": "turbo test",
+    "backend:dev": "turbo dev --filter=@bonanza/backend",
+    "storefront:dev": "turbo dev --filter=@bonanza/storefront",
+    "db:migrate": "pnpm --filter @bonanza/backend run db:migrate",
+    "db:seed": "pnpm --filter @bonanza/backend run seed:demo",
+    "e2e": "pnpm --filter @bonanza/e2e run test",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "@medusajs/eslint-plugin": "2.23.0",
+    "eslint": "^9.39.4",
+    "jiti": "^2.7.0",
+    "prettier": "^3.2.5",
+    "turbo": "^2.11.13"
+  }
+}

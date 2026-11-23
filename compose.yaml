@@ -1,0 +1,89 @@
+# Local development services. The Medusa backend and the Next.js storefront run
+# on the host (`pnpm dev`) for fast reloads; only their dependencies run here.
+#
+#   docker compose up -d                 postgres, redis, mailpit
+#   docker compose --profile s3 up -d    also MinIO, to exercise the S3 file provider
+#
+# The production stack is infrastructure/docker/compose.prod.yaml.
+
+name: bonanza-dev
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: bonanza
+      POSTGRES_PASSWORD: bonanza
+      POSTGRES_DB: bonanza
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bonanza -d bonanza"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # Catches every email the backend sends. Web UI: http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
+
+  # S3-compatible storage standing in for Cloudflare R2. Console: http://localhost:9101
+  minio:
+    image: minio/minio:latest
+    profiles: ["s3"]
+    restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: bonanza
+      MINIO_ROOT_PASSWORD: bonanza-dev-secret
+    ports:
+      - "127.0.0.1:9100:9000"
+      - "127.0.0.1:9101:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # Creates the public media bucket once MinIO is up.
+  minio-init:
+    image: minio/mc:latest
+    profiles: ["s3"]
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        mc alias set local http://minio:9000 bonanza bonanza-dev-secret
+        mc mb --ignore-existing local/bonanza-media
+        mc anonymous set download local/bonanza-media
+        mc mb --ignore-existing local/bonanza-backups
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:

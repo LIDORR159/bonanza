@@ -1,0 +1,9 @@
+pnpm-lock.yaml
+**/.medusa
+**/.next
+**/.open-next
+**/node_modules
+**/migrations
+logos
+photos-examples
+docs/screenshots

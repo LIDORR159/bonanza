@@ -1,0 +1,25 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+  - "e2e"
+  - "!apps/backend/.medusa/**"
+
+# pnpm refuses to install a dependency whose install script has not been
+# explicitly allowed or denied. Allow only what needs to compile a native
+# binary; deny the rest.
+allowBuilds:
+  "@swc/core": true
+  esbuild: true
+  msgpackr-extract: true
+  unrs-resolver: true
+  sharp: true
+  workerd: true
+  "@medusajs/telemetry": false
+  protobufjs: false
+  core-js: false
+  core-js-pure: false
+
+overrides:
+  "@types/react": "^19.3.0"
+  "@types/react-dom": "^19.3.0"
+  tsconfig-paths: "^4.2.0"
