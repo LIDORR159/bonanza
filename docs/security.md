@@ -34,7 +34,7 @@ Each control below says how it was checked, using one of three labels.
 | **Checked by hand** | Observed on a running local stack on the date given. |
 | **Code only** | The control is in the code and was read there. No automated test asserts it. |
 
-The backend has no automated tests of its own yet. That is why several controls below are "Code only".
+The backend's own unit tests (`apps/backend/src/lib/__tests__`) cover its pure helpers: signatures and signed tokens, publishing rules, and the upload content check. Everything that needs the running system is tested through the browser suite. Controls marked "Code only" have neither.
 
 ## Controls in place
 
@@ -46,7 +46,7 @@ The backend has no automated tests of its own yet. That is why several controls 
 - Admin sessions and tokens are signed with `COOKIE_SECRET` and `JWT_SECRET`. Tokens expire after `JWT_EXPIRES_IN` (7 days unless set).
 - **Prepared for deployment** (`infrastructure/docker/Caddyfile`): the public API hostname is an allowlist. It passes on `/health`, `/store`, `/auth/customer/*`, `/auth/session`, `/auth/token/refresh`, `/hooks/*`, `/static/*` and `/dev-gateway/pay/*`, and answers 404 to everything else, including `/admin`, `/app` and admin sign-in. The dashboard hostname refuses `/store`, `/hooks` and `/dev-gateway`.
 
-**Verified:** **Test**, `admin-content.spec.ts`, "the dashboard is at /app and requires signing in": an unauthenticated visit to the dashboard lands on `/app/login`, and unauthenticated calls to `/admin/cms/banners` and `/admin/products` answer 401. A call to an admin route with a *customer's* token is not tested, although a comment in that test mentions it. The proxy rules are **Code only**.
+**Verified:** **Test**, `admin-content.spec.ts`, "the dashboard is at /app and requires signing in": an unauthenticated visit to the dashboard lands on `/app/login`, and unauthenticated calls to `/admin/cms/banners` and `/admin/products` answer 401. `admin-barbershop.spec.ts`, "the new content routes refuse anonymous callers and signed-in customers", registers a real customer and shows that its token gets 401 on the admin content routes, for reading and for creating. The proxy rules were checked by hand in the local container validation (see `infrastructure/docker/README.md`).
 
 ### 2. Customer accounts and cookies
 
@@ -188,7 +188,7 @@ There is no `Content-Security-Policy`. See [Known gaps](#known-gaps).
 
 Two caveats, both listed under [Known gaps](#known-gaps): the explicit rule matches the Hebrew addresses only, not `/en/...` and `/ar/...`; and the existing test does not prove anything when run against the development server.
 
-**Verified:** **Test**, `storefront.spec.ts`: "temporary URLs are kept out of search engines". The test "personal pages are never cacheable" checks `/cart`, `/checkout`, `/account/login` and `/api/cart` for `no-store`, but the development server sends `no-store` on every page (**checked by hand** on 2026-11-23: `/` and `/products` had it too), so that test is only meaningful against a production build. It has not been run against one.
+**Verified:** **Test**, `storefront.spec.ts`: "temporary URLs are kept out of search engines". The test "personal pages are never cacheable" checks `/cart`, `/checkout`, `/account/login` and `/api/cart`, and the English and Arabic forms of the same pages, for `no-store`. The development server sends `no-store` on every page, so the test is only meaningful against a production build; it passed against one (`next build`, `next start`) on 2026-11-23, in the same run in which `/`, `/gallery` and product pages were seen to be cacheable (`s-maxage=300`).
 
 ### 12. Secrets
 
@@ -206,14 +206,13 @@ What changing a secret does: `JWT_SECRET` or `COOKIE_SECRET` signs everyone out.
 
 Medusa's Auth module includes two-factor sign-in with an authenticator app (TOTP) and recovery codes. It needs `AUTH_MFA_ENCRYPTION_KEY`, which encrypts the stored TOTP secrets. `pnpm dev:setup` generates one locally, and the production Compose file refuses to start without one.
 
-**Enrolment has not been exercised end to end on this project.** Nobody has yet enrolled a device, signed in with a code, and used a recovery code against this codebase. Until that is done, treat MFA as available but unproven. Two things to look at when doing it:
+Pending sign-in challenges are held in Medusa's cache module and checked under a lock from its locking module. Both are Redis-backed here when `REDIS_URL` is set (`medusa-config.ts`), so a challenge is shared by every backend process and survives a restart.
 
-- Medusa's notes for the installed version say that sign-in challenges are held in its cache module and checked under a lock from its locking module. This configuration registers Redis-backed locking when `REDIS_URL` is set and does not configure a cache module itself. Confirm that a challenge works in the production layout, where the API runs as its own process.
-- Nothing found so far forces an admin to enrol. Whether enrolment can be made mandatory was not checked.
+Nothing found so far forces an admin to enrol; each admin has to do it. Whether enrolment can be made mandatory was not checked. Recovery codes have not been exercised.
 
 Customers are not offered two-factor sign-in.
 
-**Verified:** **Code only**, and only that the key is wired up.
+**Verified:** **Test**, `e2e/tests/mfa.spec.ts` (2026-11-23), against the development stack: a throwaway admin user enrols an authenticator app through the API the dashboard uses; a wrong code does not confirm enrolment; after enrolment the password alone returns a challenge and no usable session; a wrong code does not pass the challenge and a correct one does. Not tested: the dashboard's own enrolment screens, recovery codes, and the production layout.
 
 ### 14. A small activity log
 
@@ -244,7 +243,9 @@ Server-level controls (SSH by key from one address, fail2ban, automatic security
 
 ### 16. Dependency and secret scanning
 
-**Not in place.** The plan is a scheduled GitHub Actions workflow that runs `pnpm audit`, a secret scanner and a container image scanner. `.github/workflows` contained no workflow when this document was written (2026-11-23). Update this section when it does.
+`.github/workflows/security.yml` runs weekly and on demand: `pnpm audit` on production dependencies (high and critical findings fail the run), gitleaks over the full git history, and Trivy over the files and over the Dockerfiles and Terraform. See [github-actions.md](github-actions.md).
+
+**Verified:** **Checked by hand** on 2026-11-23, on GitHub. The first run failed on four high-severity advisories in `nodemailer`, the backend's email library. It was upgraded to 10.6.1, the password-reset and order emails were re-tested, and the second run passed all four scans. Container images are not scanned yet, because none has been published.
 
 ## Known gaps
 
@@ -259,7 +260,7 @@ What is done instead. These reduce the risk; they do not replace roles.
 | Compensation | Status |
 |---|---|
 | Few admin accounts, one per person, none shared | A rule for the owner to keep |
-| Two-factor sign-in for every admin | Available, not yet exercised (control 13) |
+| Two-factor sign-in for every admin | Works (control 13); each admin still has to enrol |
 | The custom activity log | In place, narrow (control 14) |
 | Cloudflare Access in front of the dashboard hostname, as a second sign-in | Planned. Not set up. |
 
@@ -281,9 +282,9 @@ A private repository on GitHub Free has no protected branches or rulesets, so no
 
 The intended compensations are that deployments are started by hand by the owner, that workflows triggered by pull requests receive no secrets, that images are deployed by digest, and that the deployment key on the server can run one script only. The workflows do not exist yet, so none of this is in force.
 
-### Addresses can leak to Google through the map
+### The map is a third-party frame on every page
 
-When an address or a map is set in the admin, the footer shows a Google Maps iframe, and the footer is part of every page. The iframe carries `referrerPolicy="no-referrer-when-downgrade"` (`apps/storefront/components/layout/footer.tsx`), so when the map loads, Google is sent the full address of the page it sits on; the attribute takes precedence over the site-wide `Referrer-Policy` header. On two pages the address itself is sensitive: the order confirmation page (the address contains the order id, which is all that protects a guest's order details) and the password-reset page (the address contains the reset token and the email). The password-reset page already declares `no-referrer` for itself, which covers its links and forms, but an attribute on the iframe overrides a page's own policy for that one request. Changing the attribute to `strict-origin-when-cross-origin` or `no-referrer`, or leaving the map out on those pages, closes this. This is read from the code and the browser rules for referrer policy; it has not been observed in a network trace.
+When an address or a map is set in the admin, the footer shows a Google Maps iframe, and the footer is part of every page. Two pages have addresses that are sensitive in themselves: the order confirmation page (the order id is all that protects a guest's order details) and the password-reset page (the reset token and the email). The iframe therefore carries `referrerPolicy="no-referrer"` (`apps/storefront/components/layout/footer.tsx`), so Google is never told which page the map sits on. An earlier version sent the full address; that was found in review and fixed on 2026-11-23, and the map was checked to still load. Google still sees the visitor's IP address and sets its own cookies inside the frame, which belongs in the privacy policy.
 
 ### Other third parties
 
@@ -296,7 +297,6 @@ When an address or a map is set in the admin, the footer shows a Google Maps ifr
 | Gap | Detail |
 |---|---|
 | No `Content-Security-Policy` | Neither the storefront nor the proxy sends one. |
-| Cache rule misses two languages | The explicit `private, no-store` rule matches `/cart`, `/checkout`, `/account` and `/order`, not `/en/...` or `/ar/...`. Those pages rely on Next.js's default for per-request pages. Not checked on a production build. |
 | Guest order pages | `/order/<id>/confirmed` shows an order to anyone who has the address. The id is long and random; that is the only protection. |
 | Signing out | Deletes the cookie. The token itself stays valid until it expires (7 days). |
 | Passwords | The 8-character minimum is enforced by the storefront's forms only. There is no check against known-breached passwords. |
@@ -322,7 +322,7 @@ None of the following has been reviewed, and this document asserts nothing about
 **Accounts and access**
 
 - [ ] One admin account per person. The seeded development admin (`admin@bonanza.test`) does not exist in production.
-- [ ] MFA enrolled and tested for every admin: sign in with a code, then with a recovery code. Record the steps in this document.
+- [ ] MFA enrolled by every admin through the dashboard, and a recovery code tried once. (The API flow is tested; see control 13.)
 - [ ] Cloudflare Access is in front of the dashboard hostname, limited to named people.
 - [ ] Two-factor sign-in is on for the Oracle, Cloudflare, GitHub and domain registrar accounts.
 
@@ -351,12 +351,10 @@ None of the following has been reviewed, and this document asserts nothing about
 - [ ] From one browser, the eleventh registration in an hour is refused, while a registration from a different network still succeeds.
 - [ ] A request sent to the storefront with a made-up `X-Forwarded-For` header is still counted under the sender's real address.
 - [ ] Uploading a text file renamed to `.png`, an SVG, and a file over 8 MB are each refused.
-- [ ] The full browser suite passes against a production build.
+- [ ] The full browser suite passes against a production build of the deployed version. (It passed against a local production build of the storefront on 2026-11-23.)
 
 **Gaps to close or accept in writing**
 
-- [ ] The map's referrer policy.
-- [ ] The cache rule for `/en` and `/ar`.
 - [ ] A `Content-Security-Policy`.
-- [ ] Scanning and CI in place and green.
+- [ ] Scanning and CI green on the commit being deployed. (Both were green on GitHub on 2026-11-23.)
 - [ ] Each item under [Needs professional review](#needs-professional-review) has an owner.
