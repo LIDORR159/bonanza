@@ -4,6 +4,12 @@
 #   docker compose up -d                 postgres, redis, mailpit
 #   docker compose --profile s3 up -d    also MinIO, to exercise the S3 file provider
 #
+# KNOWN ISSUE (2026-11-23): the `minio/minio` and `minio/mc` images named by
+# the `s3` profile are no longer published on Docker Hub, so that profile fails
+# to pull on a machine that does not already have them. The default services
+# are not affected. Replace the two images with another S3-compatible server
+# before relying on the profile.
+#
 # The production stack is infrastructure/docker/compose.prod.yaml.
 
 name: bonanza-dev

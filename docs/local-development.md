@@ -117,6 +117,8 @@ By default uploaded images go to `apps/backend/static` on local disk. To exercis
 docker compose --profile s3 up -d
 ```
 
+**Known issue (2026-11-23):** the `minio/minio` and `minio/mc` images this profile names are no longer published on Docker Hub, so the command fails on a machine that has never pulled them. The S3 path has therefore not been exercised locally; the backup scripts were tested against a different S3-compatible server (see `infrastructure/docker/README.md`). Swap the two images in `compose.yaml` for another S3-compatible server before relying on this.
+
 ## Seed data
 
 There are three pieces of seed code. Only one of them is demo data.

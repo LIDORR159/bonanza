@@ -38,7 +38,9 @@ docker build -f infrastructure/docker/backend.Dockerfile \
 
 So an image built before the media hostname is known has to be rebuilt once it is.
 
-Sizes measured on arm64: backend 1.12 GB on disk (163 MB compressed), storefront 301 MB (73 MB compressed). Most of the backend is Medusa's production dependencies, which include the admin dashboard's build tooling.
+Listing the hostname is necessary but not enough. The storefront downloads each picture itself, from inside its container, before resizing it. The hostname therefore has to resolve from the server to a public address: a production build refuses an address on a private network, and a name that only exists on someone's own machine cannot be found at all. With R2 (or with pictures served by the public API hostname through Cloudflare) both conditions hold. Do not build a real image with `IMAGES_ALLOW_LOCAL=true`; the Dockerfile deliberately has no argument for it.
+
+Sizes measured on arm64: backend 1.12 GB on disk (164 MB compressed), storefront 303 MB (74 MB compressed). Most of the backend is Medusa's production dependencies, which include the admin dashboard's build tooling.
 
 The backend image carries the pictures in `apps/backend/src/scripts/seed-assets/site`, which the starter-content seed uploads. It does not carry the demo catalog's product images, so demo data cannot be loaded from it.
 
@@ -199,45 +201,65 @@ This uses the `direct` profile with certificates from Caddy's own authority, on 
    docker compose -p bonanza-trial --env-file .env --env-file images.env down --volumes
    ```
 
-Two things to expect in a trial. Signing in to the dashboard needs HTTPS, because Medusa marks its session cookie `Secure` in a production build; that is why the trial uses the direct profile rather than plain HTTP. And for a browser, the three names have to point at `127.0.0.1` in `/etc/hosts` (this was checked with `curl --resolve` only).
+Three things to expect in a trial:
+
+- Signing in to the dashboard needs HTTPS, because Medusa marks its session cookie `Secure` in a production build. That is why the trial uses the direct profile rather than plain HTTP.
+- For a browser, the three names have to point at `127.0.0.1`. This was checked with `curl --resolve` and with a headless Chromium started with the same mapping (`--host-resolver-rules`), not by editing `/etc/hosts`.
+- Uploaded pictures do not show on the storefront. Their addresses are on the API hostname, and the storefront's image optimizer has to download them from inside its container, where a made-up name such as `api.bonanza.test` does not resolve (the optimizer answers 500). Pointing it at the backend's address inside Docker does not help either: a production build refuses private addresses. The pictures themselves are served correctly by the API hostname; only the resized copies are missing. A real deployment does not have this problem (see [Building](#building)).
 
 ## Validation record
 
-Checked on 2026-11-23 on an arm64 Mac with Docker Desktop, from commit 484ca61 plus the four-file `revalidate` fix that is now in the tree. Images built for linux/arm64.
+Checked on 2026-11-23 on an arm64 Mac with Docker Desktop, with both images built for linux/arm64 from commit 862eb34 and run as described in [Trying the stack on a development machine](#trying-the-stack-on-a-development-machine). The first table is what was observed on that commit. A shorter re-check on a later commit follows it. The last table is what was observed earlier the same day on commit 484ca61 and not repeated; the `Caddyfile` has not changed since.
 
-**Observed working**
+**Observed on commit 862eb34**
 
 | Area | Result |
 |---|---|
-| Builds | Both images build with no environment and no backend reachable. |
+| Builds | Backend in 186 seconds and storefront in 90 seconds, from an empty build cache. Both build arguments end up in the images: the admin bundle contains the given `STOREFRONT_URL` and no `localhost:8000`, and the storefront's server lists exactly the given `IMAGE_HOSTNAMES`. |
+| Seed pictures | `/app/src/scripts/seed-assets/site` in the backend image holds the 13 pictures and nothing else. |
+| `migrate` | Exit 0. |
+| Start | All services healthy 15 seconds after `up -d --wait`, before the publishable key was set. |
+| First start | The steps in [First start](#first-start), in that order: key read from the database, `up -d storefront`, admin user created. |
+| Starter content | `medusa exec ./src/scripts/seed-content.js` in `medusa-server`: exit 0, no picture skipped, both photographs in the uploads volume. `/store/cms/homepage` on the API hostname returns 8 sections; the hero and About sections carry picture addresses, and the picture is served (200, `image/jpeg`). |
+| Storefront pages | 200 for `/`, `/en`, `/ar`, `/gallery`, `/products`, `/products?sort=price-asc`, `/brands`, `/cart`, `/account/login`; 404 for `/nope/deep`. `/` and `/en` are cacheable (`s-maxage=300`); `/cart`, `/en/cart` and `/account/login` are `private, no-store`. `lang` and `dir` are `he`/`rtl`, `en`/`ltr`, `ar`/`rtl`. The Hebrew and English hero titles are in the HTML. The catalog was empty: no product page, no cart with items and no checkout was exercised. |
+| Image optimizer | With a public host allowed at build time it converts a 45 KB JPEG to AVIF (9 KB) and WebP (15 KB). A host that resolves to a private address is refused (400) even when allowed, and a host that was not allowed is refused (400). |
+| Hostname rules | Over HTTPS. API host: `/health` and `/store/regions` 200; `/admin`, `/admin/users`, `/app`, `/app/login`, `/auth/user/emailpass`, `/rbac/roles`, `/` 404. Dashboard host: `/` redirects to `/app`; `/app` 200; `/admin/users` 401; `/store`, `/store/regions`, `/hooks/…` 404. Storefront host: `/api/revalidate` 404. Unknown hostname 404; port 80 redirects to HTTPS. |
+| Published ports | Only the proxy. No container mounts the Docker socket. |
+| Persistence | Database rows, a Redis key and the uploaded files survive `down` followed by `up`. |
+| Production guard | With `APP_ENV=production` and `PAYMENT_DEV_ENABLED=true` the server, the worker and `migrate` each exit 1 with the refusal message. |
+| Sign-in limits per visitor | Failed sign-ins submitted through the storefront's real form, by a headless browser, as two visitors (`CF-Connecting-IP` set to two addresses, accepted because the browser reaches the proxy from a private address, as cloudflared does). The backend's counters are kept per visitor address, not under the storefront's own. The first visitor is refused from the 21st attempt in five minutes; the second is not affected. A visitor header without a valid signature is ignored. |
+| Page refresh | From `medusa-worker`, `POST http://storefront:8000/api/revalidate` answers 200 with the shared secret and 401 with a wrong one. |
+| Admin session | Direct mode: sign-in works after a restart. Tunnel-mode proxy (plain HTTP inside): the `Secure` session cookie is set when the peer sends `X-Forwarded-Proto: https`, and not set without it. |
+| Ops scripts | `deploy.sh` and `rollback.sh` (exit 0, `images.env` and `images.env.previous` swapped as documented). `backup.sh`, `restore-verify.sh` and `healthwatch.sh`, run in a Linux container with restic 0.16.4 (the version Ubuntu 24.04 ships) against a local S3-compatible server: repository created, database and configuration snapshots saved, retention and check passed; the dump restored into a throwaway PostgreSQL 17.12 with 166 tables and 195 migration rows; healthwatch then reports no open problem. |
+| Memory | About 500 MB in total a few minutes after a restart: medusa-server 182 MB, medusa-worker 153 MB, storefront 57 MB, postgres 57 MB, caddy 35 MB, redis 6 MB. An earlier sample was 610 MB. |
+
+**Re-checked on commit e380328**
+
+That commit adds a Redis-backed cache module to the backend and upgrades nodemailer; the storefront is unchanged from 862eb34. Both images build (backend 110 seconds, storefront 51 seconds). `migrate`, the start, the first-start steps, the starter-content seed with its two photographs, and admin sign-in with a session all work, and the backend logged no error or warning. Nothing else in the first table was repeated on this commit.
+
+**Observed on commit 484ca61 and not repeated**
+
+| Area | Result |
+|---|---|
 | `caddy validate` | Valid for tunnel and direct mode, public and internal certificates. |
-| `migrate` | Exit 0, and exit 0 again on a second run. |
-| Start | All services healthy about 10 seconds after `up -d --wait`. |
-| Admin user | Created with `medusa user`; sign-in works on the dashboard hostname. |
-| Hostname rules | API host: `/health` and `/store/regions` 200; `/admin`, `/app`, `/auth/user/emailpass`, `/rbac/roles` 404. Dashboard host: `/` redirects to `/app`, `/app` 200, `/store` and `/hooks` 404. Storefront host: home page 200, `/api/revalidate` 404. Unknown hostname 404. |
 | Headers | Each security header appears once per response; `Server` and `Via` are removed. |
 | Body limits | 413 above 2 MB (API, storefront), 10 MB (dashboard) and 100 MB (uploads). A 12 MB upload reaches the backend, which refuses it with its own 8 MB message. |
-| Visitor address | An address sent in `CF-Connecting-IP` from a private-network peer appears as the client address in both Caddy's and Medusa's logs. |
-| Published ports | Only the proxy. PostgreSQL, Redis, both backend containers and the storefront publish nothing. |
-| Persistence | Database rows, a Redis key and an uploaded file survive `down` followed by `up`. |
-| Production guard | With `APP_ENV=production` and `PAYMENT_DEV_ENABLED=true` the server, the worker and `migrate` all exit 1 with the refusal message. With `APP_ENV=staging` the server starts. |
-| Direct mode | With `CADDY_TLS=internal`: certificate verifies, HTTP/2, port 80 redirects to HTTPS, the admin session cookie is `HttpOnly; Secure; SameSite=Lax` and works. |
-| Ops scripts | `healthwatch.sh` reports all services healthy. `deploy.sh` succeeds, and with a broken storefront image it exits 10 and restores the previous version. |
-| Idle memory | About 610 MB in total: medusa-server 264 MB, medusa-worker 219 MB, storefront 51 MB, postgres 51 MB, caddy 15 MB, redis 11 MB. One sample, shortly after start. |
+| Tunnel-mode routing | The hostname rules above, over plain HTTP with the proxy's port published by a test override. |
+| Direct mode | Certificate from Caddy's own authority verifies; HTTP/2; no HTTP/3 advertised. |
+| `deploy.sh` failure | With a storefront image that cannot become healthy it exits 10 and restores the previous version. |
+| Staging | With `APP_ENV=staging` and the simulated payment provider switched on, the server starts. |
 
 **Not checked**
 
-- `cloudflared` has never run: there is no tunnel to connect to. Tunnel mode was exercised without it, with the proxy's port published by a test override.
+- `cloudflared` has never run: there is no tunnel to connect to. Whether Cloudflare and cloudflared send `X-Forwarded-Proto: https` was therefore not observed, only what the proxy and the backend do when it is sent.
 - A public certificate in direct mode, and a visitor from a public address sending a forged `CF-Connecting-IP`.
-- Admin sign-in through Cloudflare in tunnel mode. It depends on Cloudflare sending `X-Forwarded-Proto: https`, which Caddy passes on from cloudflared.
-- The two build arguments with real values, and a linux/amd64 build.
-- `seed-content.js` in the image. The line that copies `seed-assets/site` into the backend image and the matching `.dockerignore` rules were added after the builds above and have not been built.
-- `ops/rollback.sh`, `ops/restore.sh`, `ops/backup.sh` and `ops/restore-verify.sh` against this stack.
+- A linux/amd64 build.
+- Product pages, a cart with items and checkout in a production build.
+- Uploaded pictures on the storefront with a real media hostname. In the local trial they do not show, for the reason given above.
+- `ops/restore.sh` (replacing the live database), and the backup scripts against Cloudflare R2 or run directly on a host.
 - Behaviour after a host reboot, under memory pressure, and over days of running.
-- Product pictures in a local trial without an S3 bucket.
 
 **Seen during validation, outside these files**
 
-- At commit 484ca61 the storefront's `/products` page answered 500 in a production build (`DYNAMIC_SERVER_USAGE`). The listing pages have since been changed; this needs a production build to confirm.
-- The storefront calls the backend from its own server and passes no visitor address on. From reading `apps/backend/src/lib/rate-limit.ts`, the per-address limits on customer sign-in and registration would then count every shopper as one address. This was not observed in a running system.
 - Medusa's own request log includes query strings; Caddy's log cuts them off.
+- The MinIO images named in the development `compose.yaml` (`minio/minio`, `minio/mc`) could not be pulled from Docker Hub on 2026-11-23: the registry answers that the repositories do not exist.
