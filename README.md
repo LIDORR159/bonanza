@@ -13,6 +13,14 @@ The website of a barbershop and its academy, with an online store for profession
 | Data | PostgreSQL 17, Redis 7 | |
 | Browser tests | Playwright | `e2e` |
 
+## What it looks like
+
+| Hebrew (default) | English | Arabic |
+|---|---|---|
+| ![Home page in Hebrew](docs/screenshots/home-he-desktop.webp) | ![Top of the home page in English](docs/screenshots/home-en-desktop.webp) | ![Top of the home page in Arabic](docs/screenshots/home-ar-desktop.webp) |
+
+More in [docs/screenshots](docs/screenshots): the phone layout, the gallery page, the catalog and a product page. Prices, gallery pictures, team members, reviews, the phone number and the opening hours in these pictures are sample data.
+
 ## Run it locally
 
 You need Node 22.22 or newer (24 LTS recommended), pnpm 12 and Docker.
