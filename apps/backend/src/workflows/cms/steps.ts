@@ -19,6 +19,22 @@ export type SaveCmsRecordInput = {
   actor_id?: string | null
 }
 
+/**
+ * Records that have a position in an ordered list, with the fields that say
+ * which list a record belongs to: a service is ordered within its group, a
+ * menu link within its menu and parent, a banner within its placement.
+ */
+const ORDERED_WITHIN: Partial<Record<CmsEntity, string[]>> = {
+  homepage_section: [],
+  banner: ["placement"],
+  navigation_item: ["menu", "parent_id"],
+  service_group: [],
+  service_item: ["group_id"],
+  gallery_item: [],
+  team_member: [],
+  review: [],
+}
+
 export const saveCmsRecordStep = createStep(
   "save-cms-record",
   async (input: SaveCmsRecordInput, { container }) => {
@@ -29,6 +45,19 @@ export const saveCmsRecordStep = createStep(
     if (!input.id) {
       if (input.entity === "content_page" && data.status === "published") {
         data.published_at = new Date()
+      }
+      // A new record goes to the end of its list unless a position was given.
+      const siblings = ORDERED_WITHIN[input.entity]
+      if (siblings && data.rank == null) {
+        const sameList = Object.fromEntries(
+          siblings.map((field) => [field, data[field] ?? null])
+        )
+        const [last] = await cms[`list${plural}`](sameList, {
+          select: ["id", "rank"],
+          order: { rank: "DESC" },
+          take: 1,
+        })
+        data.rank = last ? (last.rank ?? 0) + 10 : 0
       }
       const record = await cms[`create${plural}`](data)
       return new StepResponse(
@@ -102,7 +131,10 @@ export const reorderCmsRecordsStep = createStep(
       { reordered: input.ids.length },
       {
         entity: input.entity,
-        previous: current.map((row) => ({ id: row.id as string, rank: row.rank as number })),
+        previous: current.map((row) => ({
+          id: row.id as string,
+          rank: row.rank as number,
+        })),
       }
     )
   },

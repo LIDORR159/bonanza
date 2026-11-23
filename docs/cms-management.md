@@ -507,7 +507,6 @@ These were found by reading the code on 2026-11-23. Each is a small gap between 
 | Screen | Limit |
 |---|---|
 | Home page, Hero | Its main button does not follow the Booking link in Site settings. |
-| Home page sections | A new section is not placed last. |
 | Home page sections | There is no field for a separate picture for phones. Banners have one. |
 | Reviews | Nothing is imported from Google. The score and every review are typed by hand. |
 | Translations | Changing Hebrew text does not flag its translations as out of date. |

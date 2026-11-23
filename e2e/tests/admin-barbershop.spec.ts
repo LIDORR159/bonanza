@@ -134,6 +134,15 @@ test.describe("price list", () => {
     const row = page.locator("#pricing").getByRole("listitem").filter({ hasText: name })
     await expect(row.locator("bdi[dir=ltr]")).toHaveText("₪77")
     await expect(row).toContainText("35")
+
+    // A new service lands at the end of its group, not at the top.
+    const { service_groups: groups } = await storeGet<{
+      service_groups: StoreServiceGroup[]
+    }>(page, "/store/cms/services")
+    const group = groups.find((candidate) =>
+      candidate.items.some((item) => item.name === name)
+    )!
+    expect(group.items.at(-1)!.name).toBe(name)
   })
 
   test("the public price list rejects bad input and hides a switched-off service", async ({
