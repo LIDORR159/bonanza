@@ -12,9 +12,10 @@
 # Both need rights at the tenancy level: creating quotas and budgets in the
 # root compartment requires a tenancy administrator (or a policy that grants
 # `manage quotas` and `manage usage-budgets` in the tenancy). If the apply
-# fails here with a 404 "NotAuthorizedOrNotFound", either sign in as an
-# administrator or set manage_quotas = false / budget_alert_email = "" and
-# create them by hand later.
+# fails here with an authorization error (OCI usually reports it as
+# "NotAuthorizedOrNotFound"), either sign in as an administrator or set
+# manage_quotas = false / budget_alert_email = "" and create them by hand
+# later. Without the quota there is no hard cap.
 
 # ── Hard caps ────────────────────────────────────────────────────────────────
 

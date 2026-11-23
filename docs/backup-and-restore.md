@@ -264,7 +264,7 @@ There is no standby machine. Until the steps are finished, the store is down.
 
 ## How alerts work
 
-`healthwatch.sh` runs every 5 minutes and sends alerts to the webhook set as `ALERT_WEBHOOK_URL` in `/opt/bonanza/ops.env` (Slack, Discord and ntfy formats are supported; see the header of the script).
+`healthwatch.sh` runs every 5 minutes and sends alerts to the webhook set as `ALERT_WEBHOOK_URL` in `/opt/bonanza/ops.env`. The message is one JSON body shaped so that Slack, Discord and ntfy webhooks can each read it; the exact fields are in the header of the script. It has been tried against a local test receiver only, so send a test alert to your real channel during setup.
 
 For backups it raises:
 

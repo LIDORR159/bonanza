@@ -153,7 +153,7 @@ resource "oci_core_network_security_group_security_rule" "web_direct" {
 }
 
 # PostgreSQL (5432) and Redis (6379) are never opened: there is no rule for
-# them here, and the Compose file does not publish them on the host either.
+# them in any mode.
 
 resource "oci_core_network_security_group_security_rule" "egress_all" {
   network_security_group_id = oci_core_network_security_group.vm.id

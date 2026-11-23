@@ -127,9 +127,13 @@ cleanup() {
   release_locks
 }
 trap cleanup EXIT
-# A signal does not kill the script half way: the step in progress fails or
-# finishes, and the rollback below runs.
-trap 'INTERRUPTED=1' INT TERM HUP
+# Signals never leave a deployment half done:
+#  - Ctrl-C or `kill` (INT, TERM): the step in progress ends, then the previous
+#    version is restored, exactly as for any other failure.
+#  - a hang-up (HUP, a lost SSH session): ignored. The deployment carries on
+#    to its normal end.
+trap 'INTERRUPTED=1' INT TERM
+trap '' HUP
 
 require_cmd docker
 ensure_dirs
@@ -189,7 +193,8 @@ roll_out() {
     FAILED_STEP="health"
     return 1
   fi
-  if interrupted; then return 1; fi
+  # Healthy: the deployment is complete, and an interrupt that arrived this
+  # late no longer undoes it.
   return 0
 }
 
@@ -251,7 +256,7 @@ if [[ "$FAILED_STEP" != "pull" && "$DEPLOY_RUN_MIGRATIONS" == "1" ]]; then
 fi
 
 # The rollback itself must not be cut short by a second signal.
-trap '' INT TERM HUP
+trap '' INT TERM
 if restore_previous; then
   record_deployment "action=$DEPLOY_ACTION result=failed step=$FAILED_STEP rolled_back=yes $refs seconds=$(($(now_epoch) - STARTED_AT))"
   log "the previous version is running and healthy"

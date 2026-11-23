@@ -10,7 +10,8 @@ import {
 import { t } from "@/lib/i18n"
 import { searchCatalog, type CatalogQuery } from "@/lib/medusa/catalog"
 import { listCategories } from "@/lib/medusa/categories"
-import { listBrands } from "@/lib/medusa/content"
+import { BannerBlock } from "@/components/home/banner-block"
+import { getBanners, listBrands } from "@/lib/medusa/content"
 import { CatalogFilters } from "./catalog-filters"
 import { Pagination } from "./pagination"
 
@@ -41,10 +42,11 @@ export async function CatalogView({
   header?: ReactNode
 }) {
   const params = parseCatalogParams(searchParams)
-  const [result, brands, categories] = await Promise.all([
+  const [result, brands, categories, banners] = await Promise.all([
     searchCatalog(toCatalogQuery(params, fixed)),
     listBrands(),
     listCategories(),
+    getBanners("catalog_top"),
   ])
   const brandNames = Object.fromEntries(brands.map((brand) => [brand.handle, brand.name]))
 
@@ -81,6 +83,11 @@ export async function CatalogView({
           categories={categoryLinks}
         />
         <div>
+          {banners[0] && params.page === 1 && (
+            <div className="mb-6">
+              <BannerBlock banner={banners[0]} />
+            </div>
+          )}
           {result.items.length ? (
             <>
               <ProductGrid products={result.items} columns={3} priorityCount={3} />

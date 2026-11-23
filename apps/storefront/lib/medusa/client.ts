@@ -11,6 +11,10 @@ export const sdk = new Medusa({
   baseUrl: BACKEND_URL,
   publishableKey: PUBLISHABLE_KEY,
   debug: false,
+  // This one instance serves every visitor, so it must never remember a
+  // sign-in token. Each request passes the visitor's own token explicitly
+  // (see cookies.ts); `nostore` makes the SDK keep nothing in between.
+  auth: { type: "jwt", jwtTokenStorageMethod: "nostore" },
 })
 
 type Query = Record<string, unknown>

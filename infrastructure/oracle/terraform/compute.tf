@@ -112,7 +112,7 @@ resource "oci_core_instance" "vm" {
   lifecycle {
     # This VM holds the store's data, so Terraform must not replace it as a
     # side effect:
-    #  - source_id: a newer Ubuntu image is published every few weeks. Without
+    #  - source_id: Canonical publishes a newer Ubuntu image regularly. Without
     #    this, an unpinned image would make the next `terraform apply` destroy
     #    and recreate the VM.
     #  - metadata: cloud-init and the SSH key are read on first boot only.
