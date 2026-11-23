@@ -135,8 +135,8 @@ if (existsSync(storefrontEnvPath)) {
   writeFileSync(
     storefrontEnvPath,
     env.replace(
-      /^NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY=.*$/m,
-      `NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY=${key}`
+      /^MEDUSA_PUBLISHABLE_KEY=.*$/m,
+      `MEDUSA_PUBLISHABLE_KEY=${key}`
     )
   )
   console.log("  written to apps/storefront/.env.local")

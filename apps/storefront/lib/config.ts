@@ -1,24 +1,28 @@
 /**
  * Runtime configuration, read from the environment in one place.
+ *
+ * None of these use the NEXT_PUBLIC_ prefix on purpose. They are only read on
+ * the server, and a NEXT_PUBLIC_ value is baked into the build: without the
+ * prefix the same built image runs unchanged in staging and production.
  */
 
 const trimSlash = (url: string) => url.replace(/\/$/, "")
 
 /** Public address of this storefront. Used for canonical links and the sitemap. */
-export const SITE_URL = trimSlash(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:8000")
+export const SITE_URL = trimSlash(process.env.SITE_URL || "http://localhost:8000")
 
 /** Medusa backend, as reached from the storefront server. */
 export const BACKEND_URL = trimSlash(process.env.MEDUSA_BACKEND_URL || "http://localhost:9000")
 
-export const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY || ""
+export const PUBLISHABLE_KEY = process.env.MEDUSA_PUBLISHABLE_KEY || ""
 
 /** The store sells in one region, identified by this country. */
-export const DEFAULT_COUNTRY = (process.env.NEXT_PUBLIC_DEFAULT_COUNTRY || "il").toLowerCase()
+export const DEFAULT_COUNTRY = (process.env.DEFAULT_COUNTRY || "il").toLowerCase()
 
 export const CURRENCY = "ILS"
 
 /** False on temporary URLs so search engines do not index them. */
-export const ALLOW_INDEXING = process.env.NEXT_PUBLIC_ALLOW_INDEXING === "true"
+export const ALLOW_INDEXING = process.env.ALLOW_INDEXING === "true"
 
 export const IS_PRODUCTION = process.env.NODE_ENV === "production"
 

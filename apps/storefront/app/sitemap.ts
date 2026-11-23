@@ -4,7 +4,9 @@ import { listCategories } from "@/lib/medusa/categories"
 import { listBrands, listPages } from "@/lib/medusa/content"
 import { listProductHandles } from "@/lib/medusa/products"
 
-export const revalidate = 3600
+// Answered per request: the site address and indexing switch come from the
+// environment the server runs in, not from the build.
+export const dynamic = "force-dynamic"
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [products, categories, brands, pages] = await Promise.all([

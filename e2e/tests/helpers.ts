@@ -29,7 +29,7 @@ export const env = (name: string, file = "apps/backend/.env"): string => {
 }
 
 export const publishableKey = () =>
-  env("NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY", "apps/storefront/.env.local")
+  env("MEDUSA_PUBLISHABLE_KEY", "apps/storefront/.env.local")
 
 let cachedToken: string | undefined
 
